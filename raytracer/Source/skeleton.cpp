@@ -4,6 +4,7 @@
 #include "SDLauxiliary.h"
 #include "TestModelH.h"
 #include <stdint.h>
+#include <math.h>
 
 using namespace std;
 using glm::vec3;
@@ -32,7 +33,7 @@ glm::mat4 rotation;
 
 void Update();
 void Draw(screen* screen, const vector<Triangle>& triangles);
-
+vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor);
 //void Rotation()
 
 bool ClosestIntersection(vec3 start, vec3 dir, const vector<Triangle>& triangles, Intersection& closestIntersection){
@@ -75,7 +76,6 @@ int main(int argc, char* argv[]){
   //Load the test model into an empty vector of triangles
   vector<Triangle> triangles;
   LoadTestModel(triangles);
-
   //Enter the rendering loop
   while(NoQuitMessageSDL()){
       Update();
@@ -94,6 +94,12 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
+
+  //lightSource
+  vec4 lightPos( 0, -0.5, -0.7, 1.0 );
+  vec3 lightColor = 14.f * vec3( 1, 1, 1 );
+  //light power at point = P/4*{Pi}*r^2
+
   //Loop over all pixels in the image and calculate a ray for each one.
   for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
     for (int x = 0; x < SCREEN_WIDTH; x++){
@@ -108,11 +114,25 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
       if (ClosestIntersection(start, dir, triangles, closestIntersection)){
         vec3 colour = triangles[closestIntersection.triangleIndex].color;
-        PutPixelSDL(screen, x, y, colour);
+        vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor);
+        PutPixelSDL(screen, x, y, bwColour);
       }
-
     }
   }
+}
+
+//return resulting direct illumination
+vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor) {
+    vec4 squaredEuclidDistance;
+    squaredEuclidDistance.x = (lightPos.x - i.position.x) * (lightPos.x - i.position.x);
+    squaredEuclidDistance.y = (lightPos.y - i.position.y) * (lightPos.y - i.position.y);
+    squaredEuclidDistance.z = (lightPos.z - i.position.z) * (lightPos.z - i.position.z);
+
+    int temp = lightColor.x / (4 * M_PI * sqrt(squaredEuclidDistance.x+squaredEuclidDistance.y+squaredEuclidDistance.z));
+    lightColor.x = temp;
+    lightColor.y = temp;
+    lightColor.z = temp;
+    return lightColor;
 }
 
 /*Place updates of parameters here*/
