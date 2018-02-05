@@ -25,7 +25,7 @@ float camX = 0.0;
 float camY = 0.0;
 float camZ = -3.0;
 
-glm::mat4 rotation;
+float yaw = 0.0;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -33,7 +33,9 @@ glm::mat4 rotation;
 void Update();
 void Draw(screen* screen, const vector<Triangle>& triangles);
 
-//void Rotation()
+void Rotatate(float angX, float angY, float angZ, glm::mat3& dir){
+
+}
 
 bool ClosestIntersection(vec3 start, vec3 dir, const vector<Triangle>& triangles, Intersection& closestIntersection){
   bool intersection = false;
@@ -91,19 +93,25 @@ int main(int argc, char* argv[]){
 
 /*Place your drawing here*/
 void Draw(screen* screen, const vector<Triangle>& triangles){
-  /* Clear buffer */
-  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t)); //Clear the buffer
+
+  float focalLength = 2; //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
 
   //Loop over all pixels in the image and calculate a ray for each one.
   for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
     for (int x = 0; x < SCREEN_WIDTH; x++){
 
-      float focalLength = SCREEN_WIDTH; //this is the correct focal length
+      //converting pixel values to the interval of the cornell box [-1:1]
+      float xf = 2 * (float) x / (SCREEN_WIDTH-1) - 1; //goes from interval [0:SCREEN_WIDTH-1] to [-1:1]
+      float yf = 2 * (float) y / (SCREEN_HEIGHT-1) - 1; //goes from interval [0:SCREEN_HEIGHT-1] to [-1:1]
+      float f = focalLength; //temporary focalLength to be modified using polar co-ordinates
 
-      //vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
+      float ang = atan2(xf, focalLength); //conversion to polar co-ordinates
+      ang += yaw; //changing angle with yaw global variable
+
+      vec3 dir(cos(ang), yf, sin(ang));
+
       vec3 start(camX, camY, camZ);
-      vec3 dir(x-(SCREEN_WIDTH/2), y-(SCREEN_HEIGHT/2), focalLength);
-
       Intersection closestIntersection = {start, std::numeric_limits<float>::max(), -1};
 
       if (ClosestIntersection(start, dir, triangles, closestIntersection)){
@@ -126,7 +134,7 @@ void Update(){
   /* Display render time */
   std::cout << "Render time: " << dt << " ms." << std::endl;
 
-  float speed = 0.01;
+  float speed = 0.05;
 
   /* Update variables*/
   const uint8_t* keystate = SDL_GetKeyboardState( 0 );
@@ -141,5 +149,11 @@ void Update(){
   }
   if(keystate[SDL_SCANCODE_RIGHT]){
     camX += speed;
+  }
+  if(keystate[SDL_SCANCODE_A]){
+    yaw -= speed/2;
+  }
+  if(keystate[SDL_SCANCODE_D]){
+    yaw += speed/2;
   }
 }
