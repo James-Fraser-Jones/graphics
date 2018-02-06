@@ -36,7 +36,7 @@ void Draw(screen* screen, const vector<Triangle>& triangles);
 vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor);
 //void Rotation()
 
-}
+//}
 
 bool ClosestIntersection(vec3 start, vec3 dir, const vector<Triangle>& triangles, Intersection& closestIntersection){
   bool intersection = false;
@@ -108,6 +108,7 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
       //converting pixel values to the interval of the cornell box [-1:1]
       float xf = 2 * (float) x / (SCREEN_WIDTH-1) - 1; //goes from interval [0:SCREEN_WIDTH-1] to [-1:1]
       float yf = 2 * (float) y / (SCREEN_HEIGHT-1) - 1; //goes from interval [0:SCREEN_HEIGHT-1] to [-1:1]
+      float focalLength = SCREEN_WIDTH;
       float f = focalLength; //temporary focalLength to be modified using polar co-ordinates
 
       float ang = atan2(xf, focalLength); //conversion to polar co-ordinates

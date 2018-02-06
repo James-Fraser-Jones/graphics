@@ -3,3 +3,5 @@ raytracer/Build/skeleton.o
 /raytracer/Build/*
 
 raytracer/Build/
+
+raytracer/screenshot\.bmp
