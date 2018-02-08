@@ -108,7 +108,6 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
       float ang = atan2(xf, focalLength); //conversion to polar co-ordinates
       ang += yaw; //changing angle with yaw global variable
-
       vec3 dir(cos(ang), yf, sin(ang));
 
       vec3 start(camX, camY, camZ);
