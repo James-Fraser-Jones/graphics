@@ -22,9 +22,7 @@ struct Intersection{
 #define FULLSCREEN_MODE false
 
 vec4 cameraPos = vec4(0.0, 0.0, -3.0, 1.0);
-vec4 cameraAng = vec4(0.0, 0.0, 1.0, 0.0);
-
-float ang = 0.0;
+vec3 cameraAng = vec3(0.0, 0.0, 0.0);
 
 /*
 float camX = 0.0;
@@ -119,7 +117,7 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
       float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
       vec4 dir(xf, yf, focalLength, 0);
 
-      dir = Rotate(0.0, ang, 0.0) * dir;
+      dir = Rotate(cameraAng.x, cameraAng.y, cameraAng.z) * dir;
 
       Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
       if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
@@ -166,12 +164,19 @@ void Update(){
     moveVector[1] = 1;
   }
 
+  float lookSpeed = 0.02;
   if(keystate[SDL_SCANCODE_LEFT]){
-    ang += moveSpeed;
+    cameraAng.y += lookSpeed;
   }
   else if(keystate[SDL_SCANCODE_RIGHT]){
-    ang -= moveSpeed;
+    cameraAng.y -= lookSpeed;
+  }
+  if(keystate[SDL_SCANCODE_UP]){
+    cameraAng.x -= lookSpeed;
+  }
+  else if(keystate[SDL_SCANCODE_DOWN]){
+    cameraAng.x += lookSpeed;
   }
 
-  cameraPos += Rotate(0.0, ang, 0.0)*moveSpeed*moveVector; //update camera position using translation maxtrix
+  cameraPos += Rotate(cameraAng.x, cameraAng.y, cameraAng.z)*moveSpeed*moveVector; //update camera position using translation maxtrix
 }
