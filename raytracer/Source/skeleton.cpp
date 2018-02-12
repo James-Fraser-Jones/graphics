@@ -130,7 +130,7 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
       if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
         vec3 colour = triangles[closestIntersection.triangleIndex].color;
         vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor);
-        PutPixelSDL(screen, x, y, bwColour);
+        PutPixelSDL(screen, x, y, bwColour*colour);
       }
     }
   }
@@ -138,12 +138,12 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
 //return resulting direct illumination
 vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor) {
-    vec4 squaredEuclidDistance;
-    squaredEuclidDistance.x = (lightPos.x - i.position.x) * (lightPos.x - i.position.x);
-    squaredEuclidDistance.y = (lightPos.y - i.position.y) * (lightPos.y - i.position.y);
-    squaredEuclidDistance.z = (lightPos.z - i.position.z) * (lightPos.z - i.position.z);
 
-    int temp = lightColor.x / (4 * M_PI * sqrt(squaredEuclidDistance.x+squaredEuclidDistance.y+squaredEuclidDistance.z));
+    vec4 difference = lightPos - i.position;
+    difference = difference * difference;
+
+    float temp = lightColor.x / (4 * M_PI * (difference.x+difference.y+difference.z));
+
     lightColor.x = temp;
     lightColor.y = temp;
     lightColor.z = temp;
