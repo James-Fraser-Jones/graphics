@@ -13,7 +13,7 @@ using glm::vec4;
 using glm::mat4;
 
 struct Intersection{
-  vec3 position;
+  vec4 position;
   float distance;
   int triangleIndex;
 };
@@ -22,23 +22,30 @@ struct Intersection{
 #define SCREEN_HEIGHT 256
 #define FULLSCREEN_MODE false
 
+vec4 cameraPos = vec4(0.0, 0.0, -3.0, 1.0);
+vec3 cameraAng = vec3(0.0, 0.0, 0.0);
+
+/*
 float camX = 0.0;
 float camY = 0.0;
 float camZ = -3.0;
 
+mat4 cameraPos = mat3(1.0f);
+
 float yaw = 0.0;
+*/
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
+
+// cd Documents/graphics/COMS30115/Labs/cw/raytracer/
 
 void Update();
 void Draw(screen* screen, const vector<Triangle>& triangles);
 vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor);
 //void Rotation()
 
-//}
-
-bool ClosestIntersection(vec3 start, vec3 dir, const vector<Triangle>& triangles, Intersection& closestIntersection){
+bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection){
   bool intersection = false;
 
   for (uint32_t i=0; i < triangles.size(); i++){
@@ -50,7 +57,7 @@ bool ClosestIntersection(vec3 start, vec3 dir, const vector<Triangle>& triangles
     vec3 e1 = vec3(v1.x-v0.x, v1.y-v0.y, v1.z-v0.z);
     vec3 e2 = vec3(v2.x-v0.x, v2.y-v0.y, v2.z-v0.z);
     vec3 b = vec3(start.x-v0.x, start.y-v0.y, start.z-v0.z);
-    mat3 A(-dir, e1, e2);
+    mat3 A(-vec3(dir), e1, e2);
     vec3 x = glm::inverse(A) * b;
 
     float t = x.x;
@@ -91,10 +98,18 @@ int main(int argc, char* argv[]){
   return 0;
 }
 
+mat4 Rotate(float pitch, float yaw, float roll){
+  mat4 rotationX(1,0,0,0,0,cos(pitch),-sin(pitch),0,0,sin(pitch),cos(pitch),0,0,0,0,1);
+  mat4 rotationY(cos(yaw),0,sin(yaw),0,0,1,0,0,-sin(yaw),0,cos(yaw),0,0,0,0,1);
+  mat4 rotationZ(cos(roll),-sin(roll),0,0,sin(roll),cos(roll),0,0,0,0,1,0,0,0,0,1);
+  return (rotationZ*rotationY*rotationX);
+}
+
 /*Place your drawing here*/
 void Draw(screen* screen, const vector<Triangle>& triangles){
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t)); //Clear the buffer
 
+  float focalLength = 1; //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
 
   //lightSource
   vec4 lightPos( 0, -0.5, -0.7, 1.0 );
@@ -105,21 +120,14 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
   for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
     for (int x = 0; x < SCREEN_WIDTH; x++){
 
-      //converting pixel values to the interval of the cornell box [-1:1]
-      float xf = 2 * (float) x / (SCREEN_WIDTH-1) - 1; //goes from interval [0:SCREEN_WIDTH-1] to [-1:1]
-      float yf = 2 * (float) y / (SCREEN_HEIGHT-1) - 1; //goes from interval [0:SCREEN_HEIGHT-1] to [-1:1]
-      float focalLength = SCREEN_WIDTH;
-      float f = focalLength; //temporary focalLength to be modified using polar co-ordinates
+      float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
+      float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
+      vec4 dir(xf, yf, focalLength, 0);
 
-      float ang = atan2(xf, focalLength); //conversion to polar co-ordinates
-      ang += yaw; //changing angle with yaw global variable
+      dir = Rotate(cameraAng.x, cameraAng.y, cameraAng.z) * dir;
 
-      vec3 dir(cos(ang), yf, sin(ang));
-
-      vec3 start(camX, camY, camZ);
-      Intersection closestIntersection = {start, std::numeric_limits<float>::max(), -1};
-
-      if (ClosestIntersection(start, dir, triangles, closestIntersection)){
+      Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
+      if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
         vec3 colour = triangles[closestIntersection.triangleIndex].color;
         vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor);
         PutPixelSDL(screen, x, y, bwColour);
@@ -153,26 +161,43 @@ void Update(){
   /* Display render time */
   std::cout << "Render time: " << dt << " ms." << std::endl;
 
-  float speed = 0.05;
-
   /* Update variables*/
   const uint8_t* keystate = SDL_GetKeyboardState( 0 );
-  if(keystate[SDL_SCANCODE_UP]){
-    camY -= speed;
+
+  float moveSpeed = 0.02;
+  vec4 moveVector(0, 0, 0, 1);
+  if(keystate[SDL_SCANCODE_W]){
+    moveVector[2] = 1;
   }
-  if(keystate[SDL_SCANCODE_DOWN]){
-    camY += speed;
-  }
-  if(keystate[SDL_SCANCODE_LEFT]){
-    camX -= speed;
-  }
-  if(keystate[SDL_SCANCODE_RIGHT]){
-    camX += speed;
+  else if(keystate[SDL_SCANCODE_S]){
+    moveVector[2] = -1;
   }
   if(keystate[SDL_SCANCODE_A]){
-    yaw -= speed/2;
+    moveVector[0] = -1;
   }
-  if(keystate[SDL_SCANCODE_D]){
-    yaw += speed/2;
+  else if(keystate[SDL_SCANCODE_D]){
+    moveVector[0] = 1;
   }
+  if(keystate[SDL_SCANCODE_SPACE]){
+    moveVector[1] = -1;
+  }
+  else if(keystate[SDL_SCANCODE_LCTRL]){
+    moveVector[1] = 1;
+  }
+
+  float lookSpeed = 0.02;
+  if(keystate[SDL_SCANCODE_LEFT]){
+    cameraAng.y += lookSpeed;
+  }
+  else if(keystate[SDL_SCANCODE_RIGHT]){
+    cameraAng.y -= lookSpeed;
+  }
+  if(keystate[SDL_SCANCODE_UP]){
+    cameraAng.x -= lookSpeed;
+  }
+  else if(keystate[SDL_SCANCODE_DOWN]){
+    cameraAng.x += lookSpeed;
+  }
+
+  cameraPos += Rotate(cameraAng.x, cameraAng.y, cameraAng.z)*moveSpeed*moveVector; //update camera position using translation maxtrix
 }
