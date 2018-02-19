@@ -25,16 +25,6 @@ struct Intersection{
 vec4 cameraPos = vec4(0.0, 0.0, -3.0, 1.0);
 vec3 cameraAng = vec3(0.0, 0.0, 0.0);
 
-/*
-float camX = 0.0;
-float camY = 0.0;
-float camZ = -3.0;
-
-mat4 cameraPos = mat3(1.0f);
-
-float yaw = 0.0;
-*/
-
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
@@ -42,7 +32,7 @@ float yaw = 0.0;
 
 void Update();
 void Draw(screen* screen, const vector<Triangle>& triangles);
-vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor);
+vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles);
 //void Rotation()
 
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection){
@@ -112,7 +102,7 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
   float focalLength = 1; //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
 
   //lightSource
-  vec4 lightPos( 0, -0.5, -0.7, 1.0 );
+  vec4 lightPos(0, -0.5, -0.7, 1.0);
   vec3 lightColor = 14.f * vec3( 1, 1, 1 );
   //light power at point = P/4*{Pi}*r^2
 
@@ -128,21 +118,37 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
       Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
       if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
+
+        vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
         vec3 colour = triangles[closestIntersection.triangleIndex].color;
-        vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor);
         PutPixelSDL(screen, x, y, bwColour*colour);
+
       }
     }
   }
 }
 
 //return resulting direct illumination
-vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor) {
+vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
 
     vec4 difference = lightPos - i.position;
-    difference = difference * difference;
+    Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
+    ClosestIntersection(i.position, difference, triangles, closestIntersection);
 
-    float temp = lightColor.x / (4 * M_PI * (difference.x+difference.y+difference.z));
+    difference = difference * difference;
+    float distance = difference.x + difference.y + difference.z;
+
+    //printf("to light: %f, to intersection: %f\n", distance, closestIntersection.distance*closestIntersection.distance);
+
+    float temp;
+    //bool check = distance >= closestIntersection.distance*closestIntersection.distance;
+    bool check = true;
+    if (check){
+      temp = lightColor.x / (4 * M_PI * distance);
+    }
+    else{
+      temp = 0.2;
+    }
 
     lightColor.x = temp;
     lightColor.y = temp;
