@@ -58,7 +58,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
       intersection = true;
 
       if (t <= closestIntersection.distance){
-        closestIntersection.position = (start + (dir * t));
+        closestIntersection.position = (start + (dir * t)); //terrible
         closestIntersection.distance = t;
         closestIntersection.triangleIndex = i;
       }
@@ -117,12 +117,17 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
       dir = Rotate(cameraAng.x, cameraAng.y, cameraAng.z) * dir;
 
       Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
-      if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
+      if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){ //Terribleness goes up here
+        closestIntersection.position.w = 1.0f; //remove terribleness
 
         vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+
+        if ((x == 128) && (y == 128)){
+          printf("Terribleness: %f\n", closestIntersection.position.w);
+        }
+
         vec3 colour = triangles[closestIntersection.triangleIndex].color;
         PutPixelSDL(screen, x, y, bwColour*colour);
-
       }
     }
   }
@@ -130,23 +135,22 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
 //return resulting direct illumination
 vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
-    vec3 bwColour;
+  vec3 bwColour;
 
-    vec4 dirToLight = lightPos - i.position;
-    float disToLight = glm::length(lightPos - i.position);
+  vec4 dirToLight = glm::normalize(lightPos - i.position);
+  float disToLight = glm::length(lightPos - i.position);
 
-    Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
-    ClosestIntersection(i.position+0.01f*dirToLight, dirToLight, triangles, closestIntersection);
+  Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
+  ClosestIntersection(i.position+0.01f*dirToLight, dirToLight, triangles, closestIntersection);
 
-    if ((disToLight <= closestIntersection.distance)){
-      bwColour = (float) (1.0f/(4.0f * M_PI * disToLight)) * lightColor;
-      //bwColour = vec3(0.8f);
-    }
-    else{
-      bwColour = vec3(0.2f);
-    }
+  if ((disToLight <= closestIntersection.distance)){
+    bwColour = (float) (1.0f/(4.0f * M_PI * disToLight)) * lightColor;
+  }
+  else{
+    bwColour = vec3(0.2f);
+  }
 
-    return bwColour;
+  return bwColour;
 }
 
 /*Place updates of parameters here*/
@@ -158,7 +162,7 @@ void Update(){
   t = t2;
 
   /* Display render time */
-  std::cout << "Render time: " << dt << " ms." << std::endl;
+  //std::cout << "Render time: " << dt << " ms." << std::endl;
 
   /* Update variables*/
   const uint8_t* keystate = SDL_GetKeyboardState( 0 );
