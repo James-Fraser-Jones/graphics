@@ -132,7 +132,7 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
     vec3 bwColour;
 
-    vec4 dirToLight = glm::normalize(lightPos - i.position);
+    vec4 dirToLight = lightPos - i.position;
     float disToLight = glm::length(lightPos - i.position);
 
     Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
