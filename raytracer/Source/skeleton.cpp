@@ -130,29 +130,23 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
 //return resulting direct illumination
 vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
+    vec3 bwColour;
 
-    vec4 difference = lightPos - i.position;
+    vec4 dirToLight = glm::normalize(lightPos - i.position);
+    float disToLight = glm::length(lightPos - i.position);
+
     Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
-    ClosestIntersection(i.position+ 0.01f*glm::normalize(difference), glm::normalize(difference), triangles, closestIntersection);
+    ClosestIntersection(i.position+0.01f*dirToLight, dirToLight, triangles, closestIntersection);
 
-    float distance = glm::length(difference);
-
-    //printf("to light: %f, to intersection: %f\n", distance, closestIntersection.distance*closestIntersection.distance);
-
-    float temp;
-    bool check = distance <= closestIntersection.distance+0.05f && closestIntersection.triangleIndex != i.triangleIndex;
-    //bool check = true;
-    if (check){
-      temp = lightColor.x / (4 * M_PI * distance) +0.2;
+    if ((disToLight <= closestIntersection.distance)){
+      bwColour = (float) (1.0f/(4.0f * M_PI * disToLight)) * lightColor;
+      //bwColour = vec3(0.8f);
     }
     else{
-      temp = 0.2;
+      bwColour = vec3(0.2f);
     }
 
-    lightColor.x = temp;
-    lightColor.y = temp;
-    lightColor.z = temp;
-    return lightColor;
+    return bwColour;
 }
 
 /*Place updates of parameters here*/
