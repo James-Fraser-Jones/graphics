@@ -133,18 +133,17 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
 
     vec4 difference = lightPos - i.position;
     Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
-    ClosestIntersection(i.position, difference, triangles, closestIntersection);
+    ClosestIntersection(i.position+ 0.01f*glm::normalize(difference), glm::normalize(difference), triangles, closestIntersection);
 
-    difference = difference * difference;
-    float distance = difference.x + difference.y + difference.z;
+    float distance = glm::length(difference);
 
     //printf("to light: %f, to intersection: %f\n", distance, closestIntersection.distance*closestIntersection.distance);
 
     float temp;
-    //bool check = distance >= closestIntersection.distance*closestIntersection.distance;
-    bool check = true;
+    bool check = distance <= closestIntersection.distance+0.05f && closestIntersection.triangleIndex != i.triangleIndex;
+    //bool check = true;
     if (check){
-      temp = lightColor.x / (4 * M_PI * distance);
+      temp = lightColor.x / (4 * M_PI * distance) +0.2;
     }
     else{
       temp = 0.2;
