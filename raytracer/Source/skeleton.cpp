@@ -24,6 +24,7 @@ struct Intersection{
 
 vec4 cameraPos = vec4(0.0, 0.0, -3.0, 1.0);
 vec3 cameraAng = vec3(0.0, 0.0, 0.0);
+float theta = 0.0f;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -102,7 +103,12 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
   float focalLength = 1; //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
 
   //lightSource
-  vec4 lightPos(0, -0.5, -0.7, 1.0);
+  vec4 lightPos(-0.8, -0.5, -0.8, 1.0);
+
+  lightPos.x = sin(theta) * 0.8;
+  lightPos.z = cos(theta) * 0.8;
+  theta = theta + 0.05;
+
   vec3 lightColor = 14.f * vec3( 1, 1, 1 );
   //light power at point = P/4*{Pi}*r^2
 
@@ -143,11 +149,10 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
   Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
   ClosestIntersection(i.position+0.01f*dirToLight, dirToLight, triangles, closestIntersection);
 
-  if ((disToLight <= closestIntersection.distance)){
-    bwColour = (float) (1.0f/(4.0f * M_PI * disToLight)) * lightColor;
-  }
-  else{
-    bwColour = vec3(0.2f);
+  bwColour = vec3(0.2f); //add ambient light
+
+  if ((disToLight <= closestIntersection.distance)){ //if not in shadow, add direct light
+    bwColour += (float) (1.0f/(4.0f * M_PI * disToLight)) * lightColor;
   }
 
   return bwColour;
