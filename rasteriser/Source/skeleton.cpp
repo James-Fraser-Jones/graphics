@@ -24,6 +24,16 @@ void Draw(screen* screen);
 
 void TransformationMatrix(glm::mat4x4 M, float x, float y, float z, float pitch, float yaw, float roll){
 
+  mat4 toOrigin (1,0,0,-x,
+                 0,1,0,-y,
+                 0,0,1,-z,
+                 0,0,0,1);
+
+ mat4 toCamera (1,0,0,x,
+                0,1,0,y,
+                0,0,1,z,
+                0,0,0,1);
+
   mat4 rotationX(1,0,0,0,
                  0,cos(pitch),-sin(pitch),0,
                  0,sin(pitch),cos(pitch),0,
@@ -39,7 +49,7 @@ void TransformationMatrix(glm::mat4x4 M, float x, float y, float z, float pitch,
                  0,0,1,0,
                  0,0,0,1);
 
-  return (rotationZ*rotationY*rotationX);
+  M = toCamera*((rotationZ*rotationY*rotationX)*toOrigin);
 }
 
 int main( int argc, char* argv[] )
