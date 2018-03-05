@@ -38,7 +38,7 @@ void TransformationMatrix(glm::mat4x4 M, float x, float y, float z, float pitch,
                  sin(roll),cos(roll),0,0,
                  0,0,1,0,
                  0,0,0,1);
-                 
+
   return (rotationZ*rotationY*rotationX);
 }
 
@@ -63,16 +63,23 @@ int main( int argc, char* argv[] )
 /*Place your drawing here*/
 void Draw(screen* screen)
 {
-  /* Clear buffer */
+    /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
-  vec3 colour(1.0,0.0,0.0);
-  for(int i=0; i<1000; i++)
-    {
-      uint32_t x = rand() % screen->width;
-      uint32_t y = rand() % screen->height;
-      PutPixelSDL(screen, x, y, colour);
-    }
+  for( uint32_t i=0; i<triangles.size(); ++i )
+  {
+      vector<vec4> vertices(3);
+      vertices[0] = triangles[i].v0;
+      vertices[1] = triangles[i].v1;
+      vertices[2] = triangles[i].v2;
+      for(int v=0; v<3; ++v)
+      {
+          ivec2 projPos;
+          VertexShader( vertices[v], projPos );
+          vec3 color(1,1,1);
+          PutPixelSDL( screen, projPos.x, projPos.y, color );
+      }
+  }
 }
 
 /*Place updates of parameters here*/
