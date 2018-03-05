@@ -22,11 +22,31 @@ using glm::mat4;
 void Update();
 void Draw(screen* screen);
 
+void TransformationMatrix(glm::mat4x4 M, float x, float y, float z, float pitch, float yaw, float roll){
+
+  mat4 rotationX(1,0,0,0,
+                 0,cos(pitch),-sin(pitch),0,
+                 0,sin(pitch),cos(pitch),0,
+                 0,0,0,1);
+
+  mat4 rotationY(cos(yaw),0,sin(yaw),0,
+                 0,1,0,0,
+                 -sin(yaw),0,cos(yaw),0,
+                 0,0,0,1);
+
+  mat4 rotationZ(cos(roll),-sin(roll),0,0,
+                 sin(roll),cos(roll),0,0,
+                 0,0,1,0,
+                 0,0,0,1);
+                 
+  return (rotationZ*rotationY*rotationX);
+}
+
 int main( int argc, char* argv[] )
 {
-  
+
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  
+
   while( NoQuitMessageSDL() )
     {
       Update();
@@ -45,7 +65,7 @@ void Draw(screen* screen)
 {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
-  
+
   vec3 colour(1.0,0.0,0.0);
   for(int i=0; i<1000; i++)
     {
