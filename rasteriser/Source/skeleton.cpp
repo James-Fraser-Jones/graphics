@@ -88,17 +88,19 @@ void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 color){
   vector<ivec2> line(pixels);
   Interpolate(a, b, line);
 
+  //*
   for (int i = 0; i < pixels; i++){
-    if ((line[pixels].x >= 0) && (line[pixels].x < SCREEN_WIDTH) && (line[pixels].y >= 0) && (line[pixels].y < SCREEN_HEIGHT)){
-      PutPixelSDL(screen, line[pixels].x, line[pixels].y, color);
+    if ((line[i].x >= 0) && (line[i].x < SCREEN_WIDTH) && (line[i].y >= 0) && (line[i].y < SCREEN_HEIGHT)){
+      PutPixelSDL(screen, line[i].x, line[i].y, color);
     }
   }
+  //*/
 
   /*
-  if ((line[pixels].x >= 0) && (line[pixels].x < SCREEN_WIDTH) && (line[pixels].y >= 0) && (line[pixels].y < SCREEN_HEIGHT)){
-    PutPixelSDL(screen, line[pixels].x, line[pixels].y, color);
+  if ((a.x >= 0) && (a.x < SCREEN_WIDTH) && (a.y >= 0) && (a.y < SCREEN_HEIGHT)){
+    PutPixelSDL(screen, a.x, a.y, color);
   }
-  */
+  //*/
 }
 
 int main( int argc, char* argv[] ){
@@ -137,17 +139,9 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
 
     vec3 color(1,1,1);
 
-    /*
-    PutPixelSDL(screen, vertices2D[0].x, vertices2D[0].y, color);
-    PutPixelSDL(screen, vertices2D[1].x, vertices2D[1].y, color);
-    PutPixelSDL(screen, vertices2D[2].x, vertices2D[2].y, color);
-    */
-
-    //*
     DrawLineSDL(screen, vertices2D[0], vertices2D[1], color);
     DrawLineSDL(screen, vertices2D[1], vertices2D[2], color);
     DrawLineSDL(screen, vertices2D[2], vertices2D[0], color);
-    //*/
   }
 
 }
