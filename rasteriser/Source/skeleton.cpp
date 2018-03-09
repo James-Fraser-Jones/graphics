@@ -21,7 +21,7 @@ using glm::ivec2;
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
-vec4 cameraPos(0, 0, -3.001, 1);
+vec4 cameraPos(0, 0, -3.001, 1); //removing the 0.001 will cause a crash to occour
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
@@ -42,7 +42,7 @@ void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
                  0,1,0,pos.y,
                  0,0,1,pos.z,
                  0,0,0,1);
-  */
+  //*/
 
   mat4 rotationX(1,0,0,0,
                  0,cos(rot.x),-sin(rot.x),0,
@@ -88,19 +88,11 @@ void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 color){
   vector<ivec2> line(pixels);
   Interpolate(a, b, line);
 
-  //*
   for (int i = 0; i < pixels; i++){
     if ((line[i].x >= 0) && (line[i].x < SCREEN_WIDTH) && (line[i].y >= 0) && (line[i].y < SCREEN_HEIGHT)){
       PutPixelSDL(screen, line[i].x, line[i].y, color);
     }
   }
-  //*/
-
-  /*
-  if ((a.x >= 0) && (a.x < SCREEN_WIDTH) && (a.y >= 0) && (a.y < SCREEN_HEIGHT)){
-    PutPixelSDL(screen, a.x, a.y, color);
-  }
-  //*/
 }
 
 int main( int argc, char* argv[] ){
@@ -194,6 +186,7 @@ void Update(){
     moveVector.y = -1;
   }
 
+  //*
   //Modify global variables
   mat4 rotate, rotation, translate;
 
@@ -203,4 +196,6 @@ void Update(){
 
   cameraRot = cameraRot*rotate;
   cameraPos = cameraPos*translate;
+  //*/
+
 }
