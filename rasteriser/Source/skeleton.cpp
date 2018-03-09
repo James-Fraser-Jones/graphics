@@ -11,6 +11,7 @@ using glm::vec3;
 using glm::mat3;
 using glm::vec4;
 using glm::mat4;
+using glm::vec2;
 using glm::ivec2;
 
 #define SCREEN_WIDTH 256
@@ -71,21 +72,48 @@ void VertexShader(const vec4& v, ivec2& p){
   p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
 }
 
-int main( int argc, char* argv[] ){
+void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every point on the line
+  int N = result.size(); //we have to know the size in advance
+  vec2 step = vec2(b-a) / float(max(N-1,1));
+  vec2 current(a);
+  for(int i=0; i<N; i++){
+    result[i] = current;
+    current += step;
+  }
+}
 
+void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 color){
+  ivec2 delta = glm::abs(a - b);
+  int pixels = glm::max(delta.x, delta.y) + 1;
+  vector<ivec2> line(pixels);
+  Interpolate(a, b, line);
+
+  for (int i = 0; i < pixels; i++){
+    if ((line[pixels].x >= 0) && (line[pixels].x < SCREEN_WIDTH) && (line[pixels].y >= 0) && (line[pixels].y < SCREEN_HEIGHT)){
+      PutPixelSDL(screen, line[pixels].x, line[pixels].y, color);
+    }
+  }
+
+  /*
+  if ((line[pixels].x >= 0) && (line[pixels].x < SCREEN_WIDTH) && (line[pixels].y >= 0) && (line[pixels].y < SCREEN_HEIGHT)){
+    PutPixelSDL(screen, line[pixels].x, line[pixels].y, color);
+  }
+  */
+}
+
+int main( int argc, char* argv[] ){
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
   vector<Triangle> triangles;
   LoadTestModel(triangles);
 
-  while( NoQuitMessageSDL() )
-    {
-      Update();
-      Draw(screen, triangles);
-      SDL_Renderframe(screen);
-    }
+  while( NoQuitMessageSDL() ){
+    Update();
+    Draw(screen, triangles);
+    SDL_Renderframe(screen);
+  }
 
-  SDL_SaveImage( screen, "screenshot.bmp" );
+  SDL_SaveImage(screen, "screenshot.bmp");
 
   KillSDL(screen);
   return 0;
@@ -97,20 +125,31 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
   for( uint32_t i=0; i<triangles.size(); ++i ){
+    vector<vec4> vertices(3);
+    vertices[0] = triangles[i].v0;
+    vertices[1] = triangles[i].v1;
+    vertices[2] = triangles[i].v2;
 
-      vector<vec4> vertices(3);
-      vertices[0] = triangles[i].v0;
-      vertices[1] = triangles[i].v1;
-      vertices[2] = triangles[i].v2;
-      for(int v=0; v<3; ++v){
-          ivec2 projPos;
-          VertexShader(vertices[v], projPos);
-          vec3 color(1,1,1);
-          if ((projPos.x >= 0) && (projPos.x < SCREEN_WIDTH) && (projPos.y >= 0) && (projPos.y < SCREEN_HEIGHT)){
-            PutPixelSDL(screen, projPos.x, projPos.y, color);
-          }
-      }
+    vector<ivec2> vertices2D(3);
+    VertexShader(vertices[0], vertices2D[0]);
+    VertexShader(vertices[1], vertices2D[1]);
+    VertexShader(vertices[2], vertices2D[2]);
+
+    vec3 color(1,1,1);
+
+    /*
+    PutPixelSDL(screen, vertices2D[0].x, vertices2D[0].y, color);
+    PutPixelSDL(screen, vertices2D[1].x, vertices2D[1].y, color);
+    PutPixelSDL(screen, vertices2D[2].x, vertices2D[2].y, color);
+    */
+
+    //*
+    DrawLineSDL(screen, vertices2D[0], vertices2D[1], color);
+    DrawLineSDL(screen, vertices2D[1], vertices2D[2], color);
+    DrawLineSDL(screen, vertices2D[2], vertices2D[0], color);
+    //*/
   }
+
 }
 
 /*Place updates of parameters here*/
@@ -164,9 +203,9 @@ void Update(){
   //Modify global variables
   mat4 rotate, rotation, translate;
 
-  TransformationMatrix(rotate, lookVector*lookSpeed, vec4(0,0,0,0)); //translation
-  TransformationMatrix(rotation, vec4(0,0,0,0), cameraRot*rotate); //rotation
-  TransformationMatrix(translate, rotation*moveVector*moveSpeed, vec4(0,0,0,0)); //translation
+  TransformationMatrix(rotate, lookVector*lookSpeed, vec4(0,0,0,0)); //translation of vector which stores camera rotation values
+  TransformationMatrix(rotation, vec4(0,0,0,0), cameraRot*rotate); //rotation by new camera rotation values
+  TransformationMatrix(translate, rotation*moveVector*moveSpeed, vec4(0,0,0,0)); //translation of vector which stores camera position values
 
   cameraRot = cameraRot*rotate;
   cameraPos = cameraPos*translate;
