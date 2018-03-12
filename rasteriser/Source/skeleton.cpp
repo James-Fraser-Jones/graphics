@@ -83,12 +83,25 @@ void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every 
 }
 
 void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPixels, vector<ivec2>& rightPixels) {
-    /*for( int i=0; i<ROWS; ++i )
+    //large yMin to be reduced to actual value, reverse for yMax
+    int yMin = 2*SCREEN_HEIGHT, yMax = 0;
+    for(int i = 0; i < 3; i++) {
+        if(vertexPixels[i].y > yMax) {
+            yMax = vertexPixels[i].y;
+        }
+        if(vertexPixels[i].y < yMin) {
+            yMin = vertexPixels[i].y;
+        }
+    }
+    int ROWS = yMax - yMin;
+    leftPixels.resize(ROWS);
+    rightPixels.resize(ROWS);
+    for( int i=0; i<ROWS; ++i )
     {
         leftPixels[i].x = +numeric_limits<int>::max();
         rightPixels[i].x = -numeric_limits<int>::max();
-    }*/
-
+    }
+    //TODO:assign left and right pixels vars to actual values on triangle
 }
 
 void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 color) {
@@ -125,27 +138,43 @@ void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen )
 {
     int V = vertices.size();
     // Transform each vertex from 3D world position to 2D image position:
-    vector<ivec2> projectedVertices( V );
-    for( int i=0; i<V; ++i ) {
-        VertexShader( vertices[i], projectedVertices[i] );
+    vector<ivec2> projectedVertices(V);
+    for(int i=0; i<V; ++i) {
+        VertexShader(vertices[i], projectedVertices[i]);
     }
     // Loop over all vertices and draw the edge from it to the next vertex:
-    for( int i=0; i<V; ++i ) {
+    for(int i=0; i<V; ++i) {
         int j = (i+1)%V; // The next vertex
-        vec3 color( 1, 1, 1 );
-        DrawLineSDL( screen, projectedVertices[i], projectedVertices[j], color );
+        vec3 color(1, 1, 1);
+        DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], color);
     }
 }
+void DrawRows(const vector<ivec2>& leftPixels, const vector<ivec2>& rightPixels) {
 
+}
+void DrawPolygon( const vector<vec4>& vertices )
+{
+    int V = vertices.size();
+    vector<ivec2> vertexPixels( V );
+    for( int i=0; i<V; ++i ) {
+        VertexShader( vertices[i], vertexPixels[i] );
+    }
+    vector<ivec2> leftPixels;
+    vector<ivec2> rightPixels;
+    ComputePolygonRows( vertexPixels, leftPixels, rightPixels );
+    //DrawPolygonRows(leftPixels, rightPixels);
+}
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
 
     memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
     for( uint32_t i=0; i<triangles.size(); ++i ) {
         vector<vec4> vertices(3);
         vertices[0] = triangles[i].v0;
         vertices[1] = triangles[i].v1;
         vertices[2] = triangles[i].v2;
+
         DrawPolygonEdges(vertices, screen);
     }
 
