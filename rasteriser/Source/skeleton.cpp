@@ -73,23 +73,32 @@ void VertexShader(const vec4& v, ivec2& p){
 }
 
 void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every point on the line
-  int N = result.size(); //we have to know the size in advance
-  vec2 step = vec2(b-a) / float(max(N-1,1));
-  vec2 current(a);
-  for(int i=0; i<N; i++){
-    result[i] = current;
-    current += step;
-  }
+    int N = result.size(); //we have to know the size in advance
+    vec2 step = vec2(b-a) / float(max(N-1,1));
+    vec2 current(a);
+    for(int i=0; i<N; i++){
+        result[i] = current;
+        current += step;
+    }
 }
 
-void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 color){
+void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPixels, vector<ivec2>& rightPixels) {
+    /*for( int i=0; i<ROWS; ++i )
+    {
+        leftPixels[i].x = +numeric_limits<int>::max();
+        rightPixels[i].x = -numeric_limits<int>::max();
+    }*/
+
+}
+
+void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 color) {
   ivec2 delta = glm::abs(a - b);
   int pixels = glm::max(delta.x, delta.y) + 1;
   vector<ivec2> line(pixels);
   Interpolate(a, b, line);
 
   for (int i = 0; i < pixels; i++){
-    if ((line[i].x >= 0) && (line[i].x < SCREEN_WIDTH) && (line[i].y >= 0) && (line[i].y < SCREEN_HEIGHT)){
+    if ((line[i].x >= 0) && (line[i].x < SCREEN_WIDTH) && (line[i].y >= 0) && (line[i].y < SCREEN_HEIGHT)) {
       PutPixelSDL(screen, line[i].x, line[i].y, color);
     }
   }
@@ -112,29 +121,33 @@ int main( int argc, char* argv[] ){
   KillSDL(screen);
   return 0;
 }
+void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen )
+{
+    int V = vertices.size();
+    // Transform each vertex from 3D world position to 2D image position:
+    vector<ivec2> projectedVertices( V );
+    for( int i=0; i<V; ++i ) {
+        VertexShader( vertices[i], projectedVertices[i] );
+    }
+    // Loop over all vertices and draw the edge from it to the next vertex:
+    for( int i=0; i<V; ++i ) {
+        int j = (i+1)%V; // The next vertex
+        vec3 color( 1, 1, 1 );
+        DrawLineSDL( screen, projectedVertices[i], projectedVertices[j], color );
+    }
+}
 
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
-    /* Clear buffer */
-  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
-  for( uint32_t i=0; i<triangles.size(); ++i ){
-    vector<vec4> vertices(3);
-    vertices[0] = triangles[i].v0;
-    vertices[1] = triangles[i].v1;
-    vertices[2] = triangles[i].v2;
-
-    vector<ivec2> vertices2D(3);
-    VertexShader(vertices[0], vertices2D[0]);
-    VertexShader(vertices[1], vertices2D[1]);
-    VertexShader(vertices[2], vertices2D[2]);
-
-    vec3 color(1,1,1);
-
-    DrawLineSDL(screen, vertices2D[0], vertices2D[1], color);
-    DrawLineSDL(screen, vertices2D[1], vertices2D[2], color);
-    DrawLineSDL(screen, vertices2D[2], vertices2D[0], color);
-  }
+    memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+    for( uint32_t i=0; i<triangles.size(); ++i ) {
+        vector<vec4> vertices(3);
+        vertices[0] = triangles[i].v0;
+        vertices[1] = triangles[i].v1;
+        vertices[2] = triangles[i].v2;
+        DrawPolygonEdges(vertices, screen);
+    }
 
 }
 
