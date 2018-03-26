@@ -97,37 +97,35 @@ void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPi
     leftPixels.resize(ROWS);
     rightPixels.resize(ROWS);
 
-
-
     for(int i=0; i<ROWS; ++i) {
         leftPixels[i].x = +numeric_limits<int>::max();
         rightPixels[i].x = -numeric_limits<int>::max();
         leftPixels[i].y = yMax-i;
         rightPixels[i].y = yMax-i;
     }
-    int q = 0;
-    int p = 1;
-    while(q < 3) {
-        ivec2 delta = glm::abs(vertexPixels[q] - vertexPixels[p%3]);
+
+    for (int q = 0; q < 3; q++){
+        int p = q + 1;
+        if (q > 1) {p = 0;}
+
+        ivec2 delta = glm::abs(vertexPixels[q] - vertexPixels[p]);
         vector<ivec2> line(delta.y+1);
-        Interpolate(vertexPixels[q], vertexPixels[p%3], line);
+        Interpolate(vertexPixels[q], vertexPixels[p], line);
+
         for(int i = 0; i < delta.y+1; i++) {
-            cout << line[i].x;
-            cout << " " << leftPixels[i].x << '\n';
             for(unsigned int j = 0; j < leftPixels.size(); j++) {
-                if(line[i].y == leftPixels[j].y) {
-                    
-                    if(line[i].x > rightPixels[j].x) {
+                if(line[i].y == leftPixels[j].y){
+                    cout << "try\n";
+                    if(line[i].x > rightPixels[j].x){
                         rightPixels[j].x = line[i].x;
                     }
-                    else if(line[i].x < leftPixels[j].x) {
+                    else if(line[i].x < leftPixels[j].x){
                         leftPixels[j].x = line[i].x;
+                        cout << line[i].x << "\n";
                     }
                 }
             }
         }
-        p++;
-        q++;
     }
 
     //TODO:assign left and right pixels vars to actual values on triangle
@@ -155,15 +153,12 @@ int main( int argc, char* argv[] ){
     vector<ivec2> leftPixels;
     vector<ivec2> rightPixels;
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-    for( int row=0; row<leftPixels.size(); ++row )
-    {
-    cout << "Start: ("
-    << leftPixels[row].x << ","
-    << leftPixels[row].y << "). "
-    << "End: ("
-    << rightPixels[row].x << ","
-    << rightPixels[row].y << "). " << endl;
+    for( int row=0; row<leftPixels.size(); ++row ){
+      cout <<
+      "Start: (" << leftPixels[row].x << "," << leftPixels[row].y << "). " <<
+       "End: (" << rightPixels[row].x << "," << rightPixels[row].y << "). " << endl;
     }
+
   /*screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
   vector<Triangle> triangles;
@@ -180,6 +175,7 @@ int main( int argc, char* argv[] ){
   KillSDL(screen);*/
   return 0;
 }
+
 void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen )
 {
     int V = vertices.size();
