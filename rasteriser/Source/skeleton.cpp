@@ -70,14 +70,14 @@ void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
   M = toOrigin*(rotationZ*rotationY*rotationX);
 }
 
-void VertexShader(const vec4& v, ivec2& p){
-  mat4 M;
-  TransformationMatrix(M, cameraPos, cameraRot);
+void VertexShader(const vec4& v, Pixel& p){
+    mat4 M;
+    TransformationMatrix(M, cameraPos, cameraRot);
 
-  vec4 localV = v*M; //for whatever reason they have to multiply this way around
+    vec4 localV = v*M; //for whatever reason they have to multiply this way around
 
-  p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
-  p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
+    p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
+    p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
 }
 
 void InterpolatePixel( Pixel a, Pixel b, vector<Pixel>& result ) {
@@ -106,7 +106,7 @@ void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every 
     }
 }
 
-void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPixels, vector<ivec2>& rightPixels) {
+void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels) {
     //large yMin to be reduced to actual value, reverse for yMax
     int yMin = +numeric_limits<int>::max(), yMax = -numeric_limits<int>::max();
     for(int i = 0; i < 3; i++) {
@@ -136,11 +136,11 @@ void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPi
         int p = q + 1;
         if (q > 1) {p = 0;}
 
-        ivec2 delta = glm::abs(vertexPixels[q] - vertexPixels[p]);
-        vector<ivec2> line(delta.y+1);
-        Interpolate(vertexPixels[q], vertexPixels[p], line);
+        int yDiff = glm::abs(vertexPixels[q].y - vertexPixels[p].y);
+        vector<Pixel> line(yDiff+1);
+        InterpolatePixel(vertexPixels[q], vertexPixels[p], line);
 
-        for(int i = 0; i < delta.y+1; i++) {
+        for(int i = 0; i < yDiff+1; i++) {
             for(unsigned int j = 0; j < leftPixels.size(); j++) {
                 if(line[i].y == rightPixels[j].y){
                     if(line[i].x > rightPixels[j].x){
@@ -197,7 +197,7 @@ void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen )
     // Transform each vertex from 3D world position to 2D image position:
     vector<ivec2> projectedVertices(V);
     for(int i=0; i<V; ++i) {
-        VertexShader(vertices[i], projectedVertices[i]);
+        //VertexShader(vertices[i], projectedVertices[i]);
     }
     // Loop over all vertices and draw the edge from it to the next vertex:
     for(int i=0; i<V; ++i) {
@@ -206,7 +206,7 @@ void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen )
         DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], color);
     }
 }
-void DrawRows(const vector<ivec2>& leftPixels, const vector<ivec2>& rightPixels, screen * screen, vec3 color) {
+void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen * screen, vec3 color) {
 
     for(int j = 0; j < leftPixels.size(); j++) {
         for(int i = leftPixels[j].x; i <= rightPixels[j].x; i++) {
@@ -218,12 +218,12 @@ void DrawRows(const vector<ivec2>& leftPixels, const vector<ivec2>& rightPixels,
 void DrawPolygon( const vector<vec4>& vertices, screen* screen, vec3 color)
 {
     int V = vertices.size();
-    vector<ivec2> vertexPixels( V );
+    vector<Pixel> vertexPixels( V );
     for( int i=0; i<V; ++i ) {
         VertexShader( vertices[i], vertexPixels[i] );
     }
-    vector<ivec2> leftPixels;
-    vector<ivec2> rightPixels;
+    vector<Pixel> leftPixels;
+    vector<Pixel> rightPixels;
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
     DrawRows(leftPixels, rightPixels, screen, color);
 }
@@ -237,7 +237,7 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
         vertices[0] = triangles[i].v0;
         vertices[1] = triangles[i].v1;
         vertices[2] = triangles[i].v2;
-        DrawPolygonEdges(vertices, screen);
+        //DrawPolygonEdges(vertices, screen);
         DrawPolygon(vertices, screen, triangles[i].color);
     }
 
