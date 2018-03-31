@@ -18,9 +18,6 @@ using glm::ivec2;
 #define SCREEN_HEIGHT 256
 #define FULLSCREEN_MODE false
 
-/* ----------------------------------------------------------------------------*/
-/* FUNCTIONS                                                                   */
-
 vec4 cameraPos(0, 0, -3.001, 1); //removing the 0.001 will cause a crash to occour
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
@@ -32,12 +29,16 @@ struct Pixel {
 };
 
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
-
 float focalLength = SCREEN_WIDTH/2;
+
+/* ----------------------------------------------------------------------------*/
+/* FUNCTIONS                                                                   */
 
 void Update();
 void Draw(screen* screen, const vector <Triangle>& triangles);
 void InterpolatePixel( Pixel a, Pixel b, vector<Pixel>& result );
+
+
 void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
 
     mat4 toOrigin (1,0,0,-pos.x,
@@ -89,6 +90,7 @@ void InterpolatePixel( Pixel a, Pixel b, vector<Pixel>& result ) {
         result[i] = current;
         current.x = current.x + step.x;
         current.y = current.y + step.y;
+        current.z = current.z + step.z;
     }
 }
 
@@ -215,7 +217,7 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
         vertices[1] = triangles[i].v1;
         vertices[2] = triangles[i].v2;
         DrawPolygonEdges(vertices, screen);
-        DrawPolygon(vertices, screen, triangles[i].color);
+        //DrawPolygon(vertices, screen, triangles[i].color);
     }
 
 }
