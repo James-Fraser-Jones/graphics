@@ -5,7 +5,7 @@
 #include "TestModelH.h"
 #include <stdint.h>
 #include <math.h>
-
+#include <omp.h>
 using namespace std;
 using glm::vec3;
 using glm::mat3;
@@ -72,7 +72,6 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 int main(int argc, char* argv[]){
   //Initialize the screen
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-
   //Load the test model into an empty vector of triangles
   vector<Triangle> triangles;
   LoadTestModel(triangles);
@@ -113,6 +112,8 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
   //light power at point = P/4*{Pi}*r^2
 
   //Loop over all pixels in the image and calculate a ray for each one.
+  //omp_set_num_threads(4);
+  #pragma omp parallel for
   for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
     for (int x = 0; x < SCREEN_WIDTH; x++){
 
