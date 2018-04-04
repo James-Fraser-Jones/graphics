@@ -74,6 +74,7 @@ void VertexShader(const vec4& v, Pixel& p){
     mat4 M;
     TransformationMatrix(M, cameraPos, cameraRot);
     vec4 localV = v*M; //for whatever reason they have to multiply this way around
+    p.z = glm::abs(glm::length(cameraPos-v));
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
 }
@@ -206,7 +207,10 @@ void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen ){
 void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen * screen, vec3 color) {
     for (int j = 0; j < leftPixels.size(); j++) {
         for(int i = leftPixels[j].x; i <= rightPixels[j].x; i++) {
-            PutPixelSDL(screen, i, leftPixels[j].y, color);
+            if (depthBuffer[leftPixels[j].y][i] >= leftPixels[j].z) {
+                PutPixelSDL(screen, i, leftPixels[j].y, color);
+                depthBuffer[leftPixels[j].y][i] = leftPixels[j].z;
+            }
         }
     }
 }
@@ -253,7 +257,11 @@ void DrawVertecies(screen* screen, vector<vec4> vertices){
 
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
-
+    for( int y=0; y<SCREEN_HEIGHT; ++y ) {
+        for( int x=0; x<SCREEN_WIDTH; ++x ) {
+            depthBuffer[y][x] = +numeric_limits<float>::max();
+        }
+    }
     memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
     for( uint32_t i=0; i<triangles.size(); ++i ) {
@@ -261,9 +269,9 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
         vertices[0] = triangles[i].v0;
         vertices[1] = triangles[i].v1;
         vertices[2] = triangles[i].v2;
-        DrawPolygonEdges(vertices, screen);
-        //DrawPolygon(vertices, screen, triangles[i].color);
-        DrawVertecies(screen, vertices);
+        //DrawPolygonEdges(vertices, screen);
+        DrawPolygon(vertices, screen, triangles[i].color);
+        // /DrawVertecies(screen, vertices);
     }
 }
 
