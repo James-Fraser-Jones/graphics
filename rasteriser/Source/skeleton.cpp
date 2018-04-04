@@ -34,6 +34,12 @@ float focalLength = SCREEN_WIDTH/2;
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
+void SafePutPixelSDL(screen* screen, int x, int y, vec3 color) {
+  if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT)){
+    PutPixelSDL(screen, x, y, color);
+  }
+}
+
 void Update();
 void Draw(screen* screen, const vector <Triangle>& triangles);
 void InterpolatePixel( Pixel a, Pixel b, vector<Pixel>& result );
@@ -74,6 +80,7 @@ void VertexShader(const vec4& v, Pixel& p){
     mat4 M;
     TransformationMatrix(M, cameraPos, cameraRot);
     vec4 localV = v*M; //for whatever reason they have to multiply this way around
+    p.z = glm::abs(glm::length(cameraPos-v));
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
 }
@@ -183,7 +190,7 @@ void DrawLineSDL(screen* screen, Pixel a, Pixel b, vec3 color) {
 
     for (int i = 0; i < pixels; i++){
         if ((line[i].x >= 0) && (line[i].x < SCREEN_WIDTH) && (line[i].y >= 0) && (line[i].y < SCREEN_HEIGHT)) {
-        PutPixelSDL(screen, line[i].x, line[i].y, color);
+        SafePutPixelSDL(screen, line[i].x, line[i].y, color);
         }
     }
 }
@@ -206,7 +213,10 @@ void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen ){
 void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen * screen, vec3 color) {
     for (int j = 0; j < leftPixels.size(); j++) {
         for(int i = leftPixels[j].x; i <= rightPixels[j].x; i++) {
-            PutPixelSDL(screen, i, leftPixels[j].y, color);
+            if (depthBuffer[leftPixels[j].y][i] >= leftPixels[j].z) {
+                SafePutPixelSDL(screen, i, leftPixels[j].y, color);
+                depthBuffer[leftPixels[j].y][i] = leftPixels[j].z;
+            }
         }
     }
 }
@@ -239,21 +249,25 @@ void DrawVertecies(screen* screen, vector<vec4> vertices){
     }
 
     for (uint32_t i = 0; i < vertices.size(); i++){
-      PutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y-1, color);
-      PutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y+1, color);
-      PutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y, color);
-      PutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y-1, color);
-      PutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y+1, color);
-      PutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y, color);
-      PutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y-1, color);
-      PutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y+1, color);
-      PutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y-1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y+1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y-1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y+1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y-1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y+1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y, color);
     }
 }
 
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
-
+    for( int y=0; y<SCREEN_HEIGHT; ++y ) {
+        for( int x=0; x<SCREEN_WIDTH; ++x ) {
+            depthBuffer[y][x] = +numeric_limits<float>::max();
+        }
+    }
     memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
     for( uint32_t i=0; i<triangles.size(); ++i ) {
