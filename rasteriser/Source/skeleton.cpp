@@ -22,10 +22,22 @@ vec4 cameraPos(0, 0, -3.001, 1); //removing the 0.001 will cause a crash to occo
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
+vec4 lightPos(0,-0.5,-0.7);
+vec3 lightPower = 1.1f*vec3( 1, 1, 1 );
+vec3 indirectLightPowerPerArea = 0.5f*vec3( 1, 1, 1 );
+vec2 globalReflectance(1,1);
+
 struct Pixel {
     int x;
     int y;
     float z;
+    vec3 illumination;
+};
+
+struct Vertex {
+     vec4 position;
+     vec4 normal;
+     vec2 reflectance;
 };
 
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
@@ -35,9 +47,9 @@ float focalLength = SCREEN_WIDTH/2;
 /* FUNCTIONS                                                                   */
 
 void SafePutPixelSDL(screen* screen, int x, int y, vec3 color) {
-  if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT)){
-    PutPixelSDL(screen, x, y, color);
-  }
+    if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT)){
+        PutPixelSDL(screen, x, y, color);
+    }
 }
 
 void Update();
@@ -76,14 +88,23 @@ void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
     M = toOrigin*(rotationZ*rotationY*rotationX);
 }
 
-void VertexShader(const vec4& v, Pixel& p){
+void VertexShader(const Vertex& v, Pixel& p){
     mat4 M;
     TransformationMatrix(M, cameraPos, cameraRot);
-    vec4 localV = v*M; //for whatever reason they have to multiply this way around
-    p.z = 1.0f/glm::abs(glm::length(cameraPos-v));
-    cout << "In vertex Shader" << p.z << '\n';
+    vec4 localV = v.position*M; //for whatever reason they have to multiply this way around
+    p.z = 1.0f/glm::abs(glm::length(cameraPos-v.position));
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
+    p.illumination = v.reflectance
+}
+
+void PixelShader(const Pixel& p){
+    int x = p.x;
+    int y = p.y;
+    if( p.z > depthBuffer[y][x] ) {
+        depthBuffer[y][x] = f.z;
+        PutPixelSDL(screen, x, y, currentColor);
+    }
 }
 
 void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
@@ -178,37 +199,7 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
     }
 }
 
-void DrawLineSDL(screen* screen, Pixel a, Pixel b, vec3 color) {
-    Pixel deltaY;
-    deltaY.y = glm::abs(a.y - b.y);
-    Pixel deltaX;
-    deltaX.x = glm::abs(a.x - b.x);
 
-    int pixels = glm::max(deltaX.x, deltaY.y) + 1;
-    vector<Pixel> line(pixels);
-    InterpolatePixel(a, b, line);
-
-    for (int i = 0; i < pixels; i++){
-        if ((line[i].x >= 0) && (line[i].x < SCREEN_WIDTH) && (line[i].y >= 0) && (line[i].y < SCREEN_HEIGHT)) {
-        SafePutPixelSDL(screen, line[i].x, line[i].y, color);
-        }
-    }
-}
-
-void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen ){
-    int V = vertices.size();
-    // Transform each vertex from 3D world position to 2D image position:
-    vector<Pixel> projectedVertices(V);
-    for(int i=0; i<V; ++i) {
-        VertexShader(vertices[i], projectedVertices[i]);
-    }
-    // Loop over all vertices and draw the edge from it to the next vertex:
-    for(int i=0; i<V; ++i) {
-        int j = (i+1)%V; // The next vertex
-        vec3 color(1, 1, 1);
-        DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], color);
-    }
-}
 
 void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen * screen, vec3 color) {
     for (int j = 0; j < leftPixels.size(); j++) {
@@ -225,14 +216,12 @@ void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels,
     }
 }
 
-void DrawPolygon( const vector<vec4>& vertices, screen* screen, vec3 color){
+void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color){
     //map vector of 4d points into vector of 2d points
     int vs = vertices.size();
     vector<Pixel> vertexPixels(vs);
     for(int i = 0; i < vs; i++) {
-        cout << "begin\n";
         VertexShader(vertices[i], vertexPixels[i]);
-        cout << vertexPixels[i].z << '\n';
     }
 
     //fill leftPixels and rightPixels vectors
@@ -244,7 +233,7 @@ void DrawPolygon( const vector<vec4>& vertices, screen* screen, vec3 color){
     DrawRows(leftPixels, rightPixels, screen, color);
 }
 
-void DrawVertecies(screen* screen, vector<vec4> vertices){
+void DrawVertecies(screen* screen, vector<Vertex> vertices){
     vec3 color(0.75f, 0.15f, 0.15f);
 
     int vs = vertices.size();
@@ -278,11 +267,16 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
     memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
     for( uint32_t i=0; i<triangles.size(); ++i ) {
-        vector<vec4> vertices(3);
-        vertices[0] = triangles[i].v0;
-        vertices[1] = triangles[i].v1;
-        vertices[2] = triangles[i].v2;
-        //DrawPolygonEdges(vertices, screen);
+        vector<Vertex> vertices(3);
+        vertices[0].position = triangles[i].v0;
+        vertices[0].normal = triangles[i].normal;
+        vertices[0].reflectance = globalReflectance;
+        vertices[1].position = triangles[i].v1;
+        vertices[1].normal = triangles[i].normal;
+        vertices[0].reflectance = globalReflectance;
+        vertices[2].position = triangles[i].v2;
+        vertices[2].normal = triangles[i].normal;
+        vertices[0].reflectance = globalReflectance;
         DrawPolygon(vertices, screen, triangles[i].color);
         //DrawVertecies(screen, vertices);
     }
