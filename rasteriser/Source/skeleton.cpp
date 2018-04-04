@@ -82,9 +82,18 @@ void VertexShader(const vec4& v, Pixel& p){
     vec4 localV = v*M; //for whatever reason they have to multiply this way around
     p.z = 1.0f/glm::abs(glm::length(cameraPos-v));
     cout << "In vertex Shader" << p.z << '\n';
-    p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
-    p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
+    p.x = (focalLength * (localV.x*p.z) + (SCREEN_WIDTH/2));
+    p.y = (focalLength * (localV.y*p.z) + (SCREEN_HEIGHT/2));
 }
+/*
+void PixelShader( const Pixel& p ) {
+    int x = p.x;
+    int y = p.y;
+    if( p.zinv > depthBuffer[y][x] ) {
+        depthBuffer[y][x] = f.zinv;
+        PutPixelSDL(screen, x, y, currentColor);
+    }
+}*/
 
 void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
     int N = result.size(); //we have to know the size in advance
