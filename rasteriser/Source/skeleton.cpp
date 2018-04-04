@@ -5,7 +5,7 @@
 #include "TestModelH.h"
 #include <stdint.h>
 #include "glm/ext.hpp"
-
+#include <omp.h>
 using namespace std;
 using glm::vec3;
 using glm::mat3;
@@ -81,7 +81,7 @@ void VertexShader(const vec4& v, Pixel& p){
     TransformationMatrix(M, cameraPos, cameraRot);
     vec4 localV = v*M; //for whatever reason they have to multiply this way around
     p.z = 1.0f/glm::abs(glm::length(cameraPos-v));
-    //cout << p.z << '\n';
+    cout << "In vertex Shader" << p.z << '\n';
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
 }
@@ -165,9 +165,11 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
                 if (line[i].y == leftPixels[j].y){
                     if (line[i].x > rightPixels[j].x){
                         rightPixels[j].x = line[i].x;
+                        rightPixels[j].z = line[i].z;
                     }
                     if (line[i].x < leftPixels[j].x){
                         leftPixels[j].x = line[i].x;
+                        leftPixels[j].z = line[i].z;
                     }
                 }
             }
@@ -211,18 +213,12 @@ void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen ){
 void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen * screen, vec3 color) {
     for (int j = 0; j < leftPixels.size(); j++) {
         vector<Pixel> line(rightPixels[j].x - leftPixels[j].x +1);
-        //cout << leftPixels[j].z << '\n';
-        //cout << rightPixels[j].z << '\n';
         InterpolatePixel(leftPixels[j], rightPixels[j], line);
         for(int i = 0; i < line.size(); i++) {
-            if(line[i].y > 0 && line[i].x > 0 && line[i].x < SCREEN_WIDTH && line[i].y < SCREEN_HEIGHT) {
-                //cout << line[i].z;
-                if (depthBuffer[line[i].y][line[i].x] <= line[i].z) {
+            if(line[i].y >= 0 && line[i].x >= 0 && line[i].x < SCREEN_WIDTH && line[i].y < SCREEN_HEIGHT) {
+                if (depthBuffer[line[i].y][line[i].x] < line[i].z) {
                     SafePutPixelSDL(screen, line[i].x, line[i].y, color);
                     depthBuffer[line[i].y][line[i].x] = line[i].z;
-                }
-                else {
-                    cout << "badbad";
                 }
             }
         }
@@ -234,14 +230,16 @@ void DrawPolygon( const vector<vec4>& vertices, screen* screen, vec3 color){
     int vs = vertices.size();
     vector<Pixel> vertexPixels(vs);
     for(int i = 0; i < vs; i++) {
+        cout << "begin\n";
         VertexShader(vertices[i], vertexPixels[i]);
+        cout << vertexPixels[i].z << '\n';
     }
 
     //fill leftPixels and rightPixels vectors
     vector<Pixel> leftPixels;
     vector<Pixel> rightPixels;
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-    cout << leftPixels[2].z << '\n';
+    //cout << "here" << leftPixels[2].z << '\n';
     //draw the rows
     DrawRows(leftPixels, rightPixels, screen, color);
 }
@@ -271,6 +269,7 @@ void DrawVertecies(screen* screen, vector<vec4> vertices){
 
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
+    #pragma omp parallel for
     for( int y=0; y<SCREEN_HEIGHT; ++y ) {
         for( int x=0; x<SCREEN_WIDTH; ++x ) {
             depthBuffer[y][x] = 0;
@@ -285,7 +284,7 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
         vertices[2] = triangles[i].v2;
         //DrawPolygonEdges(vertices, screen);
         DrawPolygon(vertices, screen, triangles[i].color);
-        DrawVertecies(screen, vertices);
+        //DrawVertecies(screen, vertices);
     }
 }
 
