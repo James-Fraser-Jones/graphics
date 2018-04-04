@@ -1,11 +1,13 @@
 #include <iostream>
+#include <omp.h>
 #include <glm/glm.hpp>
 #include <SDL.h>
 #include "SDLauxiliary.h"
 #include "TestModelH.h"
 #include <stdint.h>
 #include <math.h>
-#include <omp.h>
+
+
 using namespace std;
 using glm::vec3;
 using glm::mat3;
