@@ -261,8 +261,8 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
         vertices[0] = triangles[i].v0;
         vertices[1] = triangles[i].v1;
         vertices[2] = triangles[i].v2;
-        DrawPolygonEdges(vertices, screen);
-        //DrawPolygon(vertices, screen, triangles[i].color);
+        //DrawPolygonEdges(vertices, screen);
+        DrawPolygon(vertices, screen, triangles[i].color);
         DrawVertecies(screen, vertices);
     }
 }
