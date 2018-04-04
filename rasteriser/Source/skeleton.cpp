@@ -80,7 +80,8 @@ void VertexShader(const vec4& v, Pixel& p){
     mat4 M;
     TransformationMatrix(M, cameraPos, cameraRot);
     vec4 localV = v*M; //for whatever reason they have to multiply this way around
-    p.z = glm::abs(glm::length(cameraPos-v));
+    p.z = 1.0f/glm::abs(glm::length(cameraPos-v));
+    //cout << p.z << '\n';
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
 }
@@ -92,9 +93,9 @@ void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
     float y = (b.y - a.y) / float(max(N-1,1));
     float z = (b.z - a.z) / float(max(N-1,1));
 
-    float currentX = a.x+x;
-    float currentY = a.y+y;
-    float currentZ = a.z+z;
+    float currentX = a.x;
+    float currentY = a.y;
+    float currentZ = a.z;
 
     for(int i=0; i<N; i++){
         result[i].x = currentX;
@@ -104,9 +105,6 @@ void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
         currentY = currentY+y;
         currentZ = currentZ+z;
     }
-    result[N-1].x = b.x;
-    result[N-1].y = b.y;
-    result[N-1].z = b.z;
 }
 
 void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every point on the line
@@ -212,10 +210,20 @@ void DrawPolygonEdges( const vector<vec4>& vertices, screen* screen ){
 
 void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen * screen, vec3 color) {
     for (int j = 0; j < leftPixels.size(); j++) {
-        for(int i = leftPixels[j].x; i <= rightPixels[j].x; i++) {
-            if (depthBuffer[leftPixels[j].y][i] >= leftPixels[j].z) {
-                SafePutPixelSDL(screen, i, leftPixels[j].y, color);
-                depthBuffer[leftPixels[j].y][i] = leftPixels[j].z;
+        vector<Pixel> line(rightPixels[j].x - leftPixels[j].x +1);
+        //cout << leftPixels[j].z << '\n';
+        //cout << rightPixels[j].z << '\n';
+        InterpolatePixel(leftPixels[j], rightPixels[j], line);
+        for(int i = 0; i < line.size(); i++) {
+            if(line[i].y > 0 && line[i].x > 0 && line[i].x < SCREEN_WIDTH && line[i].y < SCREEN_HEIGHT) {
+                //cout << line[i].z;
+                if (depthBuffer[line[i].y][line[i].x] <= line[i].z) {
+                    SafePutPixelSDL(screen, line[i].x, line[i].y, color);
+                    depthBuffer[line[i].y][line[i].x] = line[i].z;
+                }
+                else {
+                    cout << "badbad";
+                }
             }
         }
     }
@@ -233,7 +241,7 @@ void DrawPolygon( const vector<vec4>& vertices, screen* screen, vec3 color){
     vector<Pixel> leftPixels;
     vector<Pixel> rightPixels;
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-
+    cout << leftPixels[2].z << '\n';
     //draw the rows
     DrawRows(leftPixels, rightPixels, screen, color);
 }
@@ -265,7 +273,7 @@ void DrawVertecies(screen* screen, vector<vec4> vertices){
 void Draw(screen* screen, const vector <Triangle>& triangles){
     for( int y=0; y<SCREEN_HEIGHT; ++y ) {
         for( int x=0; x<SCREEN_WIDTH; ++x ) {
-            depthBuffer[y][x] = +numeric_limits<float>::max();
+            depthBuffer[y][x] = 0;
         }
     }
     memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
