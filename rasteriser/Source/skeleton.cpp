@@ -22,10 +22,11 @@ vec4 cameraPos(0, 0, -3.001, 1); //removing the 0.001 will cause a crash to occo
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
-vec4 lightPos(0,-0.5,-0.7);
+vec4 lightPos(0,-0.5,-0.7,1);
 vec3 lightPower = 1.1f*vec3( 1, 1, 1 );
 vec3 indirectLightPowerPerArea = 0.5f*vec3( 1, 1, 1 );
-vec2 globalReflectance(1,1);
+vec3 globalReflectance(1,1,1);
+
 
 struct Pixel {
     int x;
@@ -37,7 +38,7 @@ struct Pixel {
 struct Vertex {
      vec4 position;
      vec4 normal;
-     vec2 reflectance;
+     vec3 reflectance;
 };
 
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
@@ -90,20 +91,24 @@ void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
 
 void VertexShader(const Vertex& v, Pixel& p){
     mat4 M;
+    cout << "run\n";
     TransformationMatrix(M, cameraPos, cameraRot);
     vec4 localV = v.position*M; //for whatever reason they have to multiply this way around
     p.z = 1.0f/glm::abs(glm::length(cameraPos-v.position));
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
-    p.illumination = v.reflectance
+    vec3 D = lightPower*max((float)0, glm::dot(v.normal,(v.position-lightPos)));
+    D = D*(float)(1/(4*glm::length(v.position-lightPos)*M_PI));
+    p.illumination = v.reflectance*(D + indirectLightPowerPerArea);
+    cout << p.illumination << '\n';
 }
 
-void PixelShader(const Pixel& p){
+void PixelShader(const Pixel& p, screen *screen){
     int x = p.x;
     int y = p.y;
     if( p.z > depthBuffer[y][x] ) {
-        depthBuffer[y][x] = f.z;
-        PutPixelSDL(screen, x, y, currentColor);
+        depthBuffer[y][x] = p.z;
+        SafePutPixelSDL(screen, x, y, p.illumination);
     }
 }
 
@@ -113,18 +118,21 @@ void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
     float x = (b.x - a.x) / float(max(N-1,1));
     float y = (b.y - a.y) / float(max(N-1,1));
     float z = (b.z - a.z) / float(max(N-1,1));
-
+    vec3 illStep = (b.illumination - a.illumination) / float(max(N-1,1));
     float currentX = a.x;
     float currentY = a.y;
     float currentZ = a.z;
+    vec3 currentIll = a.illumination;
 
     for(int i=0; i<N; i++){
         result[i].x = currentX;
         result[i].y = currentY;
         result[i].z = currentZ;
+        result[i].illumination = currentIll;
         currentX = currentX+x;
         currentY = currentY+y;
         currentZ = currentZ+z;
+        currentIll = currentIll+illStep;
     }
 }
 
@@ -207,10 +215,11 @@ void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels,
         InterpolatePixel(leftPixels[j], rightPixels[j], line);
         for(int i = 0; i < line.size(); i++) {
             if(line[i].y >= 0 && line[i].x >= 0 && line[i].x < SCREEN_WIDTH && line[i].y < SCREEN_HEIGHT) {
-                if (depthBuffer[line[i].y][line[i].x] < line[i].z) {
-                    SafePutPixelSDL(screen, line[i].x, line[i].y, color);
-                    depthBuffer[line[i].y][line[i].x] = line[i].z;
-                }
+                // if (depthBuffer[line[i].y][line[i].x] < line[i].z) {
+                //     SafePutPixelSDL(screen, line[i].x, line[i].y, color);
+                //     depthBuffer[line[i].y][line[i].x] = line[i].z;
+                // }
+                PixelShader(line[i], screen);
             }
         }
     }
@@ -258,25 +267,27 @@ void DrawVertecies(screen* screen, vector<Vertex> vertices){
 
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
-    #pragma omp parallel for
+    cout << "here\n";
+    //#pragma omp parallel for
     for( int y=0; y<SCREEN_HEIGHT; ++y ) {
         for( int x=0; x<SCREEN_WIDTH; ++x ) {
             depthBuffer[y][x] = 0;
         }
     }
     memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
-
+    //#pragma omp parallel for
     for( uint32_t i=0; i<triangles.size(); ++i ) {
+
         vector<Vertex> vertices(3);
         vertices[0].position = triangles[i].v0;
         vertices[0].normal = triangles[i].normal;
         vertices[0].reflectance = globalReflectance;
         vertices[1].position = triangles[i].v1;
         vertices[1].normal = triangles[i].normal;
-        vertices[0].reflectance = globalReflectance;
+        vertices[1].reflectance = globalReflectance;
         vertices[2].position = triangles[i].v2;
         vertices[2].normal = triangles[i].normal;
-        vertices[0].reflectance = globalReflectance;
+        vertices[2].reflectance = globalReflectance;
         DrawPolygon(vertices, screen, triangles[i].color);
         //DrawVertecies(screen, vertices);
     }
@@ -347,7 +358,7 @@ int main( int argc, char* argv[] ) {
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     vector<Triangle> triangles;
     LoadTestModel(triangles);
-
+    cout << "main\n";
     while( NoQuitMessageSDL() ){
         Update();
         Draw(screen, triangles);
