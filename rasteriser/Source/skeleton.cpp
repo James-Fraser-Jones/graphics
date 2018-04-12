@@ -26,7 +26,7 @@ vec4 cameraDir(0, 0, 1, 0);
 vec4 lightPos(0,-0.5,-0.7,1);
 vec3 lightPower = 5.5f*vec3(1);
 vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
-vec3 globalReflectance(2);
+vec3 globalReflectance(1.2);
 
 struct Pixel {
     int x;
@@ -100,7 +100,11 @@ void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
     float y = (b.y - a.y) / float(max(N-1,1));
     float z = (b.z - a.z) / float(max(N-1,1));
     vec3 illStep = (b.illumination - a.illumination) / float(max(N-1,1));
-
+    // cout << "b = ";
+    // cout << b.illumination.x <<  " " <<  b.illumination.y <<  " " <<  b.illumination.z <<  " " << '\n';
+    // cout << "a = ";
+    // cout << a.illumination.x <<  " " <<  a.illumination.y <<  " " <<  a.illumination.z <<  " " << '\n';
+    //cout << illStep.x << '\n';
     //Calculate and store each step
     for(int i=0; i<N; i++){
         result[i].x = currentX;
@@ -167,9 +171,12 @@ void VertexShader(const Vertex& v, Pixel& p){
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
 
     //Setting illumination
-    vec3 D = lightPower*max((float)0, glm::dot(v.normal,(lightPos-v.position)));
+    vec3 D = lightPower*max((float)0, glm::abs(glm::dot(v.normal,(lightPos-v.position))));
+    //cout << "D1 " << D.x << '\n';
     D = D*(float)(1/(4*glm::length(v.position-lightPos)*M_PI));
+    //cout << "D2 " << D.x << '\n';
     p.illumination = v.reflectance*(D + indirectLightPowerPerArea);
+
 }
 
 void PixelShader(const Pixel& p, screen *screen, vec3 color){
@@ -178,7 +185,7 @@ void PixelShader(const Pixel& p, screen *screen, vec3 color){
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-        SafePutPixelSDL(screen, x, y, p.illumination*color);
+        SafePutPixelSDL(screen, x, y, p.illumination*p.illumination*p.illumination*color);
     }
 }
 
@@ -196,7 +203,9 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
             yMin = vertexPixels[i].y;
         }
     }
-
+    // cout << vertexPixels[0].illumination.x << '\n';
+    // cout << vertexPixels[1].illumination.x << '\n';
+    // cout << vertexPixels[2].illumination.x << '\n';
     //calculate number of rows needed to draw the triangle
     int ROWS = yMax - yMin + 1;
     leftPixels.resize(ROWS);
@@ -225,7 +234,8 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
         //get line between vertices p and q and ensure that it is long enough in y direction to have a pixel for every row
         int yDiff = glm::abs(vertexPixels[q].y - vertexPixels[p].y);
         vector<Pixel> line(yDiff+1);
-        InterpolatePixel(vertexPixels[q], vertexPixels[p], line); //this is brok atm
+
+        InterpolatePixel(vertexPixels[q], vertexPixels[p], line);
 
         //use line to set x values for leftPixels and rightPixels
         for (int i = 0; i < line.size(); i++) {
@@ -235,6 +245,7 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
                         rightPixels[j].x = line[i].x;
                         rightPixels[j].z = line[i].z;
                         rightPixels[j].illumination = line[i].illumination;
+                        //cout << line[i].illumination.x << '\n';
                     }
                     if (line[i].x < leftPixels[j].x){
                         leftPixels[j].x = line[i].x;
@@ -251,7 +262,7 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
 void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen* screen, vec3 color){
     //given left and right pixels of a triangle, call pixelshader for all pixels in the triangle
     for (int j = 0; j < leftPixels.size(); j++) {
-        vector<Pixel> line(rightPixels[j].x - leftPixels[j].x +1);
+        vector<Pixel> line(max(1,rightPixels[j].x - leftPixels[j].x +1)); // hacky shit
         InterpolatePixel(leftPixels[j], rightPixels[j], line);
         for(int i = 0; i < line.size(); i++) {
             if(line[i].y >= 0 && line[i].x >= 0 && line[i].x < SCREEN_WIDTH && line[i].y < SCREEN_HEIGHT) {
@@ -272,6 +283,9 @@ void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color){
     //fill leftPixels and rightPixels vectors
     vector<Pixel> leftPixels;
     vector<Pixel> rightPixels;
+    // cout << vertexPixels[0].illumination.x << '\n';
+    // cout << vertexPixels[1].illumination.x << '\n';
+    // cout << vertexPixels[2].illumination.x << '\n';
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
     //draw the rows
     DrawRows(leftPixels, rightPixels, screen, color);
