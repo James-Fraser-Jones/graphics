@@ -24,21 +24,20 @@ vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
 vec4 lightPos(0,-0.5,-0.7,1);
-vec3 lightPower = 5.5f*vec3(1);
+vec3 lightPower = 7.0f*vec3(1);
 vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
-vec3 globalReflectance(1.2);
+vec3 globalReflectance(1.5);
+vec4 currentNormal;
 
 struct Pixel {
     int x;
     int y;
     float z;
-    vec3 illumination;
+    vec4 pos3d;
 };
 
 struct Vertex {
      vec4 position;
-     vec4 normal;
-     vec3 reflectance;
 };
 
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
@@ -93,29 +92,25 @@ void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
     float currentX = a.x;
     float currentY = a.y;
     float currentZ = a.z;
-    vec3 currentIll = a.illumination;
+    vec4 current3DPos = a.pos3d;
 
     //Set step values
     float x = (b.x - a.x) / float(max(N-1,1));
     float y = (b.y - a.y) / float(max(N-1,1));
     float z = (b.z - a.z) / float(max(N-1,1));
-    vec3 illStep = (b.illumination - a.illumination) / float(max(N-1,1));
-    // cout << "b = ";
-    // cout << b.illumination.x <<  " " <<  b.illumination.y <<  " " <<  b.illumination.z <<  " " << '\n';
-    // cout << "a = ";
-    // cout << a.illumination.x <<  " " <<  a.illumination.y <<  " " <<  a.illumination.z <<  " " << '\n';
-    //cout << illStep.x << '\n';
+    vec4 step3d = (b.pos3d - a.pos3d) / float(max(N-1,1));
+
     //Calculate and store each step
     for(int i=0; i<N; i++){
         result[i].x = currentX;
         result[i].y = currentY;
         result[i].z = currentZ;
-        result[i].illumination = currentIll;
+        result[i].pos3d = current3DPos;
 
         currentX = currentX+x;
         currentY = currentY+y;
         currentZ = currentZ+z;
-        currentIll = currentIll+illStep;
+        current3DPos = current3DPos+step3d;
     }
 }
 
@@ -169,23 +164,21 @@ void VertexShader(const Vertex& v, Pixel& p){
     p.z = 1.0f/glm::abs(glm::length(cameraPos-v.position));
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
-
-    //Setting illumination
-    vec3 D = lightPower*max((float)0, glm::abs(glm::dot(v.normal,(lightPos-v.position))));
-    //cout << "D1 " << D.x << '\n';
-    D = D*(float)(1/(4*glm::length(v.position-lightPos)*M_PI));
-    //cout << "D2 " << D.x << '\n';
-    p.illumination = v.reflectance*(D + indirectLightPowerPerArea);
-
+    p.pos3d = v.position;
 }
 
 void PixelShader(const Pixel& p, screen *screen, vec3 color){
     //Draw the pixel p on the screen, if it is closest to the screen
+    vec3 reflectance(1,1,1);
     int x = p.x;
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-        SafePutPixelSDL(screen, x, y, p.illumination*p.illumination*p.illumination*color);
+        vec3 D = lightPower*max((float)0, glm::abs(glm::dot(currentNormal,(lightPos-p.pos3d))));
+        D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
+        vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
+
+        SafePutPixelSDL(screen, x, y, illumination*illumination*illumination*color);
     }
 }
 
@@ -203,9 +196,6 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
             yMin = vertexPixels[i].y;
         }
     }
-    // cout << vertexPixels[0].illumination.x << '\n';
-    // cout << vertexPixels[1].illumination.x << '\n';
-    // cout << vertexPixels[2].illumination.x << '\n';
     //calculate number of rows needed to draw the triangle
     int ROWS = yMax - yMin + 1;
     leftPixels.resize(ROWS);
@@ -244,13 +234,12 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
                     if (line[i].x > rightPixels[j].x){
                         rightPixels[j].x = line[i].x;
                         rightPixels[j].z = line[i].z;
-                        rightPixels[j].illumination = line[i].illumination;
-                        //cout << line[i].illumination.x << '\n';
+                        rightPixels[j].pos3d = line[i].pos3d;
                     }
                     if (line[i].x < leftPixels[j].x){
                         leftPixels[j].x = line[i].x;
                         leftPixels[j].z = line[i].z;
-                        leftPixels[j].illumination = line[i].illumination;
+                        leftPixels[j].pos3d = line[i].pos3d;
                     }
                 }
             }
@@ -283,9 +272,6 @@ void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color){
     //fill leftPixels and rightPixels vectors
     vector<Pixel> leftPixels;
     vector<Pixel> rightPixels;
-    // cout << vertexPixels[0].illumination.x << '\n';
-    // cout << vertexPixels[1].illumination.x << '\n';
-    // cout << vertexPixels[2].illumination.x << '\n';
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
     //draw the rows
     DrawRows(leftPixels, rightPixels, screen, color);
@@ -310,12 +296,7 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
         vertices[0].position = triangles[i].v0;
         vertices[1].position = triangles[i].v1;
         vertices[2].position = triangles[i].v2;
-        vertices[0].normal = triangles[i].normal;
-        vertices[1].normal = triangles[i].normal;
-        vertices[2].normal = triangles[i].normal;
-        vertices[0].reflectance = globalReflectance;
-        vertices[1].reflectance = globalReflectance;
-        vertices[2].reflectance = globalReflectance;
+        currentNormal = triangles[i].normal;
         DrawPolygon(vertices, screen, triangles[i].color);
     }
 }
