@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "glm/ext.hpp"
 #include <omp.h>
+
 using namespace std;
 using glm::vec3;
 using glm::mat3;
@@ -23,9 +24,9 @@ vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
 vec4 lightPos(0,-0.5,-0.7,1);
-vec3 lightPower = 1.1f*vec3( 1, 1, 1 );
-vec3 indirectLightPowerPerArea = 0.5f*vec3( 1, 1, 1 );
-vec3 globalReflectance(1,1,1);
+vec3 lightPower = 5.5f*vec3(1);
+vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
+vec3 globalReflectance(2);
 
 struct Pixel {
     int x;
@@ -46,15 +47,79 @@ float focalLength = SCREEN_WIDTH/2;
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
+/*
+//For debugging
+void DrawVertecies(screen* screen, vector<Vertex> vertices){
+    vec3 color(0.75f, 0.15f, 0.15f);
+
+    int vs = vertices.size();
+    vector<Pixel> vertexPixels(vs);
+    for(int i = 0; i < vs; i++) {
+        VertexShader(vertices[i], vertexPixels[i]);
+        //cout << "x: " << vertexPixels[i].x << "\n" << "y: " << vertexPixels[i].y << "\n";
+    }
+
+    for (uint32_t i = 0; i < vertices.size(); i++){
+      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y-1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y+1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y-1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y+1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y-1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y+1, color);
+      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y, color);
+    }
+}
+*/
+
+/*
+//No longer used
+void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every point on the line
+    int N = result.size(); //we have to know the size in advance
+    vec2 step = vec2(b-a) / float(max(N-1,1));
+    vec2 current(a);
+    for(int i=0; i<N; i++){
+        result[i] = current;
+        current += step;
+    }
+}
+*/
+
+void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
+    int N = result.size(); //we have to know the size in advance
+
+    //Set initial values
+    float currentX = a.x;
+    float currentY = a.y;
+    float currentZ = a.z;
+    vec3 currentIll = a.illumination;
+
+    //Set step values
+    float x = (b.x - a.x) / float(max(N-1,1));
+    float y = (b.y - a.y) / float(max(N-1,1));
+    float z = (b.z - a.z) / float(max(N-1,1));
+    vec3 illStep = (b.illumination - a.illumination) / float(max(N-1,1));
+
+    //Calculate and store each step
+    for(int i=0; i<N; i++){
+        result[i].x = currentX;
+        result[i].y = currentY;
+        result[i].z = currentZ;
+        result[i].illumination = currentIll;
+
+        currentX = currentX+x;
+        currentY = currentY+y;
+        currentZ = currentZ+z;
+        currentIll = currentIll+illStep;
+    }
+}
+
 void SafePutPixelSDL(screen* screen, int x, int y, vec3 color) {
     if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT)){
         PutPixelSDL(screen, x, y, color);
     }
 }
-
-void Update();
-void Draw(screen* screen, const vector <Triangle>& triangles);
-void InterpolatePixel( Pixel a, Pixel b, vector<Pixel>& result );
 
 void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
 
@@ -89,65 +154,38 @@ void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
 }
 
 void VertexShader(const Vertex& v, Pixel& p){
+    //input vertex v and set correct position and illumination for pixel p
+
+    //Camera transform
     mat4 M;
     TransformationMatrix(M, cameraPos, cameraRot);
     vec4 localV = v.position*M; //for whatever reason they have to multiply this way around
+
+    //Setting position
     p.z = 1.0f/glm::abs(glm::length(cameraPos-v.position));
     p.x = (focalLength * (localV.x/localV.z) + (SCREEN_WIDTH/2));
     p.y = (focalLength * (localV.y/localV.z) + (SCREEN_HEIGHT/2));
-    vec3 D = lightPower*max((float)0, glm::dot(v.normal,(v.position-lightPos)));
+
+    //Setting illumination
+    vec3 D = lightPower*max((float)0, glm::dot(v.normal,(lightPos-v.position)));
     D = D*(float)(1/(4*glm::length(v.position-lightPos)*M_PI));
     p.illumination = v.reflectance*(D + indirectLightPowerPerArea);
-    //printf("%f\n", );
-    // /cout << p.illumination.x << '\n';
 }
 
 void PixelShader(const Pixel& p, screen *screen, vec3 color){
+    //Draw the pixel p on the screen, if it is closest to the screen
     int x = p.x;
     int y = p.y;
-    if( p.z > depthBuffer[y][x] ) {
+    if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-        SafePutPixelSDL(screen, x, y, p.illumination);
+        SafePutPixelSDL(screen, x, y, p.illumination*color);
     }
 }
 
-void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
-    int N = result.size(); //we have to know the size in advance
-    //Pixel step, current;
-    float x = (b.x - a.x) / float(max(N-1,1));
-    float y = (b.y - a.y) / float(max(N-1,1));
-    float z = (b.z - a.z) / float(max(N-1,1));
-    vec3 illStep = (b.illumination - a.illumination) / float(max(N-1,1));
-    cout << illStep.x << '\n';
-    float currentX = a.x;
-    float currentY = a.y;
-    float currentZ = a.z;
-    vec3 currentIll = a.illumination;
-    //cout << currentIll + "\n";
-    for(int i=0; i<N; i++){
-        result[i].x = currentX;
-        result[i].y = currentY;
-        result[i].z = currentZ;
-        result[i].illumination = currentIll;
-        //cout << currentIll.x << '\n';
-        currentX = currentX+x;
-        currentY = currentY+y;
-        currentZ = currentZ+z;
-        currentIll = currentIll+illStep;
-    }
-}
+void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels){
+    //given the vertecies of a triangle, produce two lists of pixels which
+    //are at the left and rightmost positions on each row of the triangle
 
-void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every point on the line
-    int N = result.size(); //we have to know the size in advance
-    vec2 step = vec2(b-a) / float(max(N-1,1));
-    vec2 current(a);
-    for(int i=0; i<N; i++){
-        result[i] = current;
-        current += step;
-    }
-}
-
-void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels) {
     //get maximum and minimum y values of the triangle
     int yMin = SCREEN_WIDTH, yMax = -1;
     for(int i = 0; i < 3; i++) {
@@ -210,18 +248,13 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
     }
 }
 
-
-
-void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen * screen, vec3 color) {
+void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen* screen, vec3 color){
+    //given left and right pixels of a triangle, call pixelshader for all pixels in the triangle
     for (int j = 0; j < leftPixels.size(); j++) {
         vector<Pixel> line(rightPixels[j].x - leftPixels[j].x +1);
         InterpolatePixel(leftPixels[j], rightPixels[j], line);
         for(int i = 0; i < line.size(); i++) {
             if(line[i].y >= 0 && line[i].x >= 0 && line[i].x < SCREEN_WIDTH && line[i].y < SCREEN_HEIGHT) {
-                // if (depthBuffer[line[i].y][line[i].x] < line[i].z) {
-                //     SafePutPixelSDL(screen, line[i].x, line[i].y, color);
-                //     depthBuffer[line[i].y][line[i].x] = line[i].z;
-                // }
                 PixelShader(line[i], screen, color);
             }
         }
@@ -244,54 +277,32 @@ void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color){
     DrawRows(leftPixels, rightPixels, screen, color);
 }
 
-void DrawVertecies(screen* screen, vector<Vertex> vertices){
-    vec3 color(0.75f, 0.15f, 0.15f);
-
-    int vs = vertices.size();
-    vector<Pixel> vertexPixels(vs);
-    for(int i = 0; i < vs; i++) {
-        VertexShader(vertices[i], vertexPixels[i]);
-        //cout << "x: " << vertexPixels[i].x << "\n" << "y: " << vertexPixels[i].y << "\n";
-    }
-
-    for (uint32_t i = 0; i < vertices.size(); i++){
-      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y-1, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y+1, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x, vertexPixels[i].y, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y-1, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y+1, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x+1, vertexPixels[i].y, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y-1, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y+1, color);
-      SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y, color);
-    }
-}
-
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
-    cout << "here\n";
-    //#pragma omp parallel for
+
+    //reset depth buffer
     for( int y=0; y<SCREEN_HEIGHT; ++y ) {
         for( int x=0; x<SCREEN_WIDTH; ++x ) {
             depthBuffer[y][x] = 0;
         }
     }
-    memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
-    //#pragma omp parallel for
-    for( uint32_t i=0; i<triangles.size(); ++i ) {
 
+    //reset screen
+    memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
+    for( uint32_t i=0; i<triangles.size(); ++i ) {
+        //set vertices array for a specific triangle
         vector<Vertex> vertices(3);
         vertices[0].position = triangles[i].v0;
-        vertices[0].normal = triangles[i].normal;
-        vertices[0].reflectance = globalReflectance;
         vertices[1].position = triangles[i].v1;
-        vertices[1].normal = triangles[i].normal;
-        vertices[1].reflectance = globalReflectance;
         vertices[2].position = triangles[i].v2;
+        vertices[0].normal = triangles[i].normal;
+        vertices[1].normal = triangles[i].normal;
         vertices[2].normal = triangles[i].normal;
+        vertices[0].reflectance = globalReflectance;
+        vertices[1].reflectance = globalReflectance;
         vertices[2].reflectance = globalReflectance;
         DrawPolygon(vertices, screen, triangles[i].color);
-        //DrawVertecies(screen, vertices);
     }
 }
 
@@ -356,17 +367,17 @@ void Update(){
     //*/
 }
 
-int main( int argc, char* argv[] ) {
-        cout << "main\n";
-    screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+int main(int argc, char* argv[]){
+    screen *screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
     vector<Triangle> triangles;
     LoadTestModel(triangles);
 
-    while( NoQuitMessageSDL() ){
+    while(NoQuitMessageSDL()){
         Update();
         Draw(screen, triangles);
         SDL_Renderframe(screen);
     }
+
     SDL_SaveImage(screen, "screenshot.bmp");
     KillSDL(screen);
     return 0;
