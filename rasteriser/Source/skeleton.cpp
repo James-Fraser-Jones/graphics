@@ -31,8 +31,8 @@ vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
 vec4 currentNormal;
 
-vec3 band1(0.5,0.5,0.5);
-vec3 band2(2,2,2);
+vec3 band1(1.5);
+vec3 band2(3);
 
 struct Pixel {
     int x;
@@ -125,19 +125,12 @@ void SafePutPixelSDL(screen* screen, int x, int y, vec3 color) {
     }
 }
 
-void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
+void TransformationMatrix(mat4& M, vec4 pos, vec4 rot) {
 
     mat4 toOrigin (1,0,0,-pos.x,
                     0,1,0,-pos.y,
                     0,0,1,-pos.z,
                     0,0,0,1);
-
-    /* //don't seem to need this at the moment
-    mat4 toCamera (1,0,0,pos.x,
-                    0,1,0,pos.y,
-                    0,0,1,pos.z,
-                    0,0,0,1);
-    //*/
 
     mat4 rotationX(1,0,0,0,
                     0,cos(rot.x),-sin(rot.x),0,
@@ -180,7 +173,7 @@ vec3 getBand(float distance) {
             return vec3(0.5);
     }
     else {
-        return vec3(0.5);
+        return vec3(0.25);
     }
 }
 
@@ -191,12 +184,16 @@ void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
+        //cout << p.pos3d.x <<'\n';
         float distance = glm::abs(glm::dot(cNormal,(lightPos-p.pos3d)));
+        distance = glm::abs(distance);
+        //cout << distance <<'\n';
         vec3 D = lightPower*max((float)0, distance);
         D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
+        //cout << distance <<'\n';
         vec3 band = getBand(distance);
-        SafePutPixelSDL(screen, x, y, band*illumination*illumination*color);
+        SafePutPixelSDL(screen, x, y, band*illumination*color);
     }
 }
 
