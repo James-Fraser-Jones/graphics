@@ -117,15 +117,15 @@ void Update(){
 }
 
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection){
-  bool intersection = false;
+    bool intersection = false;
 
-  for (uint32_t i=0; i < triangles.size(); i++){
+    for (uint32_t i=0; i < triangles.size(); i++){
     Triangle triangle = triangles[i];
 
     vec4 v0 = triangle.v0;
     vec4 v1 = triangle.v1;
     vec4 v2 = triangle.v2;
-    
+
     vec3 e1 = vec3(v1.x-v0.x, v1.y-v0.y, v1.z-v0.z);
     vec3 e2 = vec3(v2.x-v0.x, v2.y-v0.y, v2.z-v0.z);
     vec3 b = vec3(start.x-v0.x, start.y-v0.y, start.z-v0.z);
@@ -136,101 +136,101 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
     float u = x.y;
     float v = x.z;
 
-    if ((t >= 0) && (u >= 0) && (v >= 0) && (u + v <= 1)){ //use less than or equal to here, instead of less than
-      intersection = true;
+        if ((t >= 0) && (u >= 0) && (v >= 0) && (u + v <= 1)){ //use less than or equal to here, instead of less than
+            intersection = true;
 
-      if (t <= closestIntersection.distance){
-        closestIntersection.position = (start + (dir * t));
-        closestIntersection.distance = t;
-        closestIntersection.triangleIndex = i;
-      }
+            if (t <= closestIntersection.distance){
+            closestIntersection.position = (start + (dir * t));
+            closestIntersection.distance = t;
+            closestIntersection.triangleIndex = i;
+            }
+        }
     }
-  }
 
-  return intersection;
+    return intersection;
 }
 
 vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
-  vec3 bwColour;
+    vec3 bwColour;
 
-  vec4 dirToLight = glm::normalize(lightPos - i.position);
-  float disToLight = glm::length(lightPos - i.position);
+    vec4 dirToLight = glm::normalize(lightPos - i.position);
+    float disToLight = glm::length(lightPos - i.position);
 
-  Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
-  ClosestIntersection(i.position+0.01f*dirToLight, dirToLight, triangles, closestIntersection);
+    Intersection closestIntersection = {i.position, std::numeric_limits<float>::max(), -1};
+    ClosestIntersection(i.position+0.01f*dirToLight, dirToLight, triangles, closestIntersection);
 
-  if ((disToLight <= closestIntersection.distance)){ //if not in shadow, add direct light
-    bwColour = (float) (1.0f/(4.0f * M_PI * disToLight)) * lightColor;
-  }
+    if ((disToLight <= closestIntersection.distance)){ //if not in shadow, add direct light
+        bwColour = (float) (1.0f/(4.0f * M_PI * disToLight)) * lightColor;
+    }
 
-  bwColour += vec3(0.2f); //add ambient light
+    bwColour += vec3(0.2f); //add ambient light
 
-  return bwColour;
+    return bwColour;
 }
 
 void Draw(screen* screen, const vector<Triangle>& triangles){
 
-  //Clear the buffer
-  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+    //Clear the buffer
+    memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
-  //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
-  float focalLength = 1;
+    //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
+    float focalLength = 1;
 
-  //lightSource with constants
-  vec4 lightPos;
-  lightPos.y = -0.5;
-  lightPos.w = 1.0;
-  vec3 lightColor = 14.f * vec3(1);
+    //lightSource with constants
+    vec4 lightPos;
+    lightPos.y = -0.5;
+    lightPos.w = 1.0;
+    vec3 lightColor = 14.f * vec3(1);
 
-  //lightSource rotates around the room
-  lightPos.x = sin(theta) * 0.8;
-  lightPos.z = cos(theta) * 0.8;
-  theta = theta + 0.05;
+    //lightSource rotates around the room
+    lightPos.x = sin(theta) * 0.8;
+    lightPos.z = cos(theta) * 0.8;
+    theta = theta + 0.05;
 
-  //Loop over all pixels in the image and calculate a ray for each one.
-  //omp_set_num_threads(4);
-  #pragma omp parallel for
-  for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
-    for (int x = 0; x < SCREEN_WIDTH; x++){
+    //Loop over all pixels in the image and calculate a ray for each one.
+    //omp_set_num_threads(4);
+    #pragma omp parallel for
+    for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
+        for (int x = 0; x < SCREEN_WIDTH; x++){
 
-      //get direction to pixel from middle of camera view
-      float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
-      float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
-      vec4 dir(xf, yf, focalLength, 0);
+        //get direction to pixel from middle of camera view
+        float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
+        float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
+        vec4 dir(xf, yf, focalLength, 0);
 
-      //modify direction to pixel based on camera rotation
-      mat4 M;
-      TransformationMatrix(M, vec4(0), cameraRot);
-      dir = M * dir;
+        //modify direction to pixel based on camera rotation
+        mat4 M;
+        TransformationMatrix(M, vec4(0), cameraRot);
+        dir = M * dir;
 
-      Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
-      if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
-        vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
-        vec3 colour = triangles[closestIntersection.triangleIndex].color;
-        PutPixelSDL(screen, x, y, bwColour*colour);
-      }
+        Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
+        if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
+            vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+            vec3 colour = triangles[closestIntersection.triangleIndex].color;
+            PutPixelSDL(screen, x, y, bwColour*colour);
+        }
 
+        }
     }
-  }
 }
 
 int main(int argc, char* argv[]){
-  //Initialize the screen
-  screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+    //Initialize the screen
+    screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
-  //Load the test model into an empty vector of triangles
-  vector<Triangle> triangles;
-  LoadTestModel(triangles);
+    //Load the test model into an empty vector of triangles
+    vector<Triangle> triangles;
+    LoadTestModel(triangles);
 
-  //Enter the rendering loop
-  while(NoQuitMessageSDL()){
-      Update();
-      Draw(screen, triangles);
-      SDL_Renderframe(screen);
-  }
+    //Enter the rendering loop
+    while(NoQuitMessageSDL()){
+        Update();
+        Draw(screen, triangles);
+        SDL_Renderframe(screen);
+    }
 
-  //Finalise
-  SDL_SaveImage( screen, "screenshot.bmp" );
-  KillSDL(screen);
-  return 0;
+    //Finalise
+    SDL_SaveImage( screen, "screenshot.bmp" );
+    KillSDL(screen);
+    return 0;
 }
