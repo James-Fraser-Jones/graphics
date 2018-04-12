@@ -8,3 +8,7 @@ raytracer/screenshot.bmp
 raytracer/screenshot\.bmp
 
 *.bmp
+
+rasteriser/Build/skeleton
+
+rasteriser/Build/skeleton\.o
