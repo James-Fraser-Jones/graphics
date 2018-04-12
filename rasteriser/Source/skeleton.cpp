@@ -102,7 +102,7 @@ void VertexShader(const Vertex& v, Pixel& p){
     // /cout << p.illumination.x << '\n';
 }
 
-void PixelShader(const Pixel& p, screen *screen){
+void PixelShader(const Pixel& p, screen *screen, vec3 color){
     int x = p.x;
     int y = p.y;
     if( p.z > depthBuffer[y][x] ) {
@@ -222,7 +222,7 @@ void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels,
                 //     SafePutPixelSDL(screen, line[i].x, line[i].y, color);
                 //     depthBuffer[line[i].y][line[i].x] = line[i].z;
                 // }
-                PixelShader(line[i], screen);
+                PixelShader(line[i], screen, color);
             }
         }
     }
