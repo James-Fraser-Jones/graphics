@@ -31,9 +31,8 @@ vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
 vec4 currentNormal;
 
-vec3 band1(1,1,1);
-vec3 band2(1,1,1);
-vec3 band3(1,1,1);
+vec3 band1(0.5,0.5,0.5);
+vec3 band2(2,2,2);
 
 struct Pixel {
     int x;
@@ -173,20 +172,31 @@ void VertexShader(const Vertex& v, Pixel& p){
     p.pos3d = v.position;
 }
 
+vec3 getBand(float distance) {
+    if(distance < band1.x) {
+        return vec3(2);
+    }
+    if(distance < band2.x) {
+            return vec3(0.5);
+    }
+    else {
+        return vec3(0.5);
+    }
+}
 
 void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
     //Draw the pixel p on the screen, if it is closest to the screen
-    vec3 reflectance(1,1,1);
+    vec3 reflectance(1);
     int x = p.x;
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-
-        vec3 D = lightPower*max((float)0, glm::abs(glm::dot(cNormal,(lightPos-p.pos3d))));
+        float distance = glm::abs(glm::dot(cNormal,(lightPos-p.pos3d)));
+        vec3 D = lightPower*max((float)0, distance);
         D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
-
-        SafePutPixelSDL(screen, x, y, illumination*illumination*color);
+        vec3 band = getBand(distance);
+        SafePutPixelSDL(screen, x, y, band*illumination*illumination*color);
     }
 }
 
