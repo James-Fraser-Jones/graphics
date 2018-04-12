@@ -31,6 +31,10 @@ vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
 vec4 currentNormal;
 
+vec3 band1(1,1,1);
+vec3 band2(1,1,1);
+vec3 band3(1,1,1);
+
 struct Pixel {
     int x;
     int y;
@@ -177,11 +181,12 @@ void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
+
         vec3 D = lightPower*max((float)0, glm::abs(glm::dot(cNormal,(lightPos-p.pos3d))));
         D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
 
-        SafePutPixelSDL(screen, x, y, illumination*illumination*illumination*color);
+        SafePutPixelSDL(screen, x, y, illumination*illumination*color);
     }
 }
 
