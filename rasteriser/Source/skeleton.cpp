@@ -1,4 +1,5 @@
 #include <iostream>
+#include <time.h>
 #include <glm/glm.hpp>
 #include <SDL.h>
 #include "SDLauxiliary.h"
@@ -6,6 +7,7 @@
 #include <stdint.h>
 #include "glm/ext.hpp"
 #include <omp.h>
+#include <map>
 
 using namespace std;
 using glm::vec3;
@@ -15,11 +17,11 @@ using glm::mat4;
 using glm::vec2;
 using glm::ivec2;
 
-#define SCREEN_WIDTH 256
-#define SCREEN_HEIGHT 256
+#define SCREEN_WIDTH 512
+#define SCREEN_HEIGHT 512
 #define FULLSCREEN_MODE false
 
-vec4 cameraPos(0, 0, -3.001, 1); //removing the 0.001 will cause a crash to occour
+vec4 cameraPos(0, 0, -2.001, 1); //removing the 0.001 will cause a crash to occour
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
@@ -28,6 +30,9 @@ vec3 lightPower = 7.0f*vec3(1);
 vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
 vec4 currentNormal;
+
+vec3 band1(0.5,0.5,0.5);
+vec3 band2(2,2,2);
 
 struct Pixel {
     int x;
@@ -167,18 +172,31 @@ void VertexShader(const Vertex& v, Pixel& p){
     p.pos3d = v.position;
 }
 
-void PixelShader(const Pixel& p, screen *screen, vec3 color){
+vec3 getBand(float distance) {
+    if(distance < band1.x) {
+        return vec3(2);
+    }
+    if(distance < band2.x) {
+            return vec3(0.5);
+    }
+    else {
+        return vec3(0.5);
+    }
+}
+
+void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
     //Draw the pixel p on the screen, if it is closest to the screen
-    vec3 reflectance(1,1,1);
+    vec3 reflectance(1);
     int x = p.x;
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-        vec3 D = lightPower*max((float)0, glm::abs(glm::dot(currentNormal,(lightPos-p.pos3d))));
+        float distance = glm::abs(glm::dot(cNormal,(lightPos-p.pos3d)));
+        vec3 D = lightPower*max((float)0, distance);
         D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
-
-        SafePutPixelSDL(screen, x, y, illumination*illumination*illumination*color);
+        vec3 band = getBand(distance);
+        SafePutPixelSDL(screen, x, y, band*illumination*illumination*color);
     }
 }
 
@@ -248,20 +266,20 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
     }
 }
 
-void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen* screen, vec3 color){
+void DrawRows(const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, screen* screen, vec3 color, vec4 cNormal){
     //given left and right pixels of a triangle, call pixelshader for all pixels in the triangle
     for (int j = 0; j < leftPixels.size(); j++) {
         vector<Pixel> line(max(1,rightPixels[j].x - leftPixels[j].x +1)); // hacky shit
         InterpolatePixel(leftPixels[j], rightPixels[j], line);
         for(int i = 0; i < line.size(); i++) {
             if(line[i].y >= 0 && line[i].x >= 0 && line[i].x < SCREEN_WIDTH && line[i].y < SCREEN_HEIGHT) {
-                PixelShader(line[i], screen, color);
+                PixelShader(line[i], screen, color, cNormal);
             }
         }
     }
 }
 
-void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color){
+void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color, vec4 cNormal){
     //map vector of 4d points into vector of 2d points
     int vs = vertices.size();
     vector<Pixel> vertexPixels(vs);
@@ -274,8 +292,21 @@ void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color){
     vector<Pixel> rightPixels;
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
     //draw the rows
-    DrawRows(leftPixels, rightPixels, screen, color);
+    DrawRows(leftPixels, rightPixels, screen, color, cNormal);
 }
+
+void outlinePixel(screen* screen, int x, int y) {
+    SafePutPixelSDL(screen, x-1, y-1, vec3(0,0,0));
+    SafePutPixelSDL(screen, x-1, y, vec3(0,0,0));
+    SafePutPixelSDL(screen, x-1, y+1, vec3(0,0,0));
+    SafePutPixelSDL(screen, x, y-1, vec3(0,0,0));
+    SafePutPixelSDL(screen, x, y, vec3(0,0,0));
+    SafePutPixelSDL(screen, x, y+1, vec3(0,0,0));
+    SafePutPixelSDL(screen, x+1, y-1, vec3(0,0,0));
+    SafePutPixelSDL(screen, x+1, y, vec3(0,0,0));
+    SafePutPixelSDL(screen, x+1, y+1, vec3(0,0,0));
+}
+
 
 /*Place your drawing here*/
 void Draw(screen* screen, const vector <Triangle>& triangles){
@@ -289,15 +320,48 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
 
     //reset screen
     memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
-
+    vec4 cNormal;
+    //#pragma omp parallel for
     for( uint32_t i=0; i<triangles.size(); ++i ) {
         //set vertices array for a specific triangle
         vector<Vertex> vertices(3);
         vertices[0].position = triangles[i].v0;
         vertices[1].position = triangles[i].v1;
         vertices[2].position = triangles[i].v2;
-        currentNormal = triangles[i].normal;
-        DrawPolygon(vertices, screen, triangles[i].color);
+        cNormal = triangles[i].normal;
+        DrawPolygon(vertices, screen, triangles[i].color, cNormal);
+    }
+    //shader
+
+    std::map<int,float> surround;
+    int flag1 = 0;
+    //#pragma omp parallel for
+    for(int y = 1; y < SCREEN_HEIGHT-1; y++) {
+        for(int x = 1; x < SCREEN_WIDTH-1; x++) {
+            flag1 = 0;
+            surround[1] = depthBuffer[y-1][x-1];
+            surround[2] = depthBuffer[y-1][x];
+            surround[3] = depthBuffer[y-1][x+1];
+            surround[4] = depthBuffer[y][x-1];
+            surround[5] = depthBuffer[y][x+1];
+            surround[6] = depthBuffer[y+1][x-1];
+            surround[7] = depthBuffer[y+1][x];
+            surround[8] = depthBuffer[y+1][x+1];
+
+            for(int q = 1; q < 9; q++) {
+                if(surround[q] == 0) {
+                    flag1 = 1;
+                }
+            }
+            if(flag1 != 1) {
+                for(int z = 1; z < 9; z++) {
+                    if( glm::abs(surround[z] - depthBuffer[y][x]) > 0.1f) {
+                        outlinePixel(screen, x, y);
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -367,10 +431,27 @@ int main(int argc, char* argv[]){
     vector<Triangle> triangles;
     LoadTestModel(triangles);
 
+    time_t time0;
+    time_t time1;
+    omp_set_num_threads(4);
+    time(&time0);
+    int counter = 0;
+    cout.precision(5);
     while(NoQuitMessageSDL()){
         Update();
         Draw(screen, triangles);
         SDL_Renderframe(screen);
+        counter++;
+        if(counter == 500) {
+            time(&time1);
+
+            float seconds = time1 - time0;
+            int fps = 500/seconds;
+            cout << fps << '\n';
+
+            counter = 0;
+            time(&time0);
+        }
     }
 
     SDL_SaveImage(screen, "screenshot.bmp");
