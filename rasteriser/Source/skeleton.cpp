@@ -25,7 +25,7 @@ vec4 cameraPos(0, 0, -2.001, 1); //removing the 0.001 will cause a crash to occo
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
-vec4 lightPos(0,-0.5,-0.7,1);
+vec4 lightPos(0,-0.7,0,1);
 vec3 lightPower = 7.0f*vec3(1);
 vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
@@ -73,19 +73,6 @@ void DrawVertecies(screen* screen, vector<Vertex> vertices){
       SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y-1, color);
       SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y+1, color);
       SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y, color);
-    }
-}
-*/
-
-/*
-//No longer used
-void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every point on the line
-    int N = result.size(); //we have to know the size in advance
-    vec2 step = vec2(b-a) / float(max(N-1,1));
-    vec2 current(a);
-    for(int i=0; i<N; i++){
-        result[i] = current;
-        current += step;
     }
 }
 */
@@ -184,16 +171,16 @@ void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-        //cout << p.pos3d.x <<'\n';
-        float distance = glm::abs(glm::dot(cNormal,(lightPos-p.pos3d)));
-        distance = glm::abs(distance);
+        //cout << p.pos3d.x << " " << p.pos3d.y<< " " << p.pos3d.z <<'\n';
+        float distance = glm::length((lightPos-p.pos3d));
         //cout << distance <<'\n';
-        vec3 D = lightPower*max((float)0, distance);
+        vec3 D = lightPower*max((float)0, glm::abs(glm::dot(cNormal,(lightPos-p.pos3d))));
         D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
         //cout << distance <<'\n';
         vec3 band = getBand(distance);
-        SafePutPixelSDL(screen, x, y, band*illumination*color);
+        //cout << band.x << '\n';
+        SafePutPixelSDL(screen, x, y, band*color);
     }
 }
 
