@@ -27,7 +27,6 @@ vec3 lightPower = 1.1f*vec3( 1, 1, 1 );
 vec3 indirectLightPowerPerArea = 0.5f*vec3( 1, 1, 1 );
 vec3 globalReflectance(1,1,1);
 
-
 struct Pixel {
     int x;
     int y;
@@ -91,7 +90,6 @@ void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
 
 void VertexShader(const Vertex& v, Pixel& p){
     mat4 M;
-    cout << "run\n";
     TransformationMatrix(M, cameraPos, cameraRot);
     vec4 localV = v.position*M; //for whatever reason they have to multiply this way around
     p.z = 1.0f/glm::abs(glm::length(cameraPos-v.position));
@@ -100,7 +98,8 @@ void VertexShader(const Vertex& v, Pixel& p){
     vec3 D = lightPower*max((float)0, glm::dot(v.normal,(v.position-lightPos)));
     D = D*(float)(1/(4*glm::length(v.position-lightPos)*M_PI));
     p.illumination = v.reflectance*(D + indirectLightPowerPerArea);
-    cout << p.illumination << '\n';
+    //printf("%f\n", );
+    // /cout << p.illumination.x << '\n';
 }
 
 void PixelShader(const Pixel& p, screen *screen){
@@ -119,16 +118,18 @@ void InterpolatePixel(Pixel a, Pixel b, vector<Pixel>& result) {
     float y = (b.y - a.y) / float(max(N-1,1));
     float z = (b.z - a.z) / float(max(N-1,1));
     vec3 illStep = (b.illumination - a.illumination) / float(max(N-1,1));
+    cout << illStep.x << '\n';
     float currentX = a.x;
     float currentY = a.y;
     float currentZ = a.z;
     vec3 currentIll = a.illumination;
-
+    //cout << currentIll + "\n";
     for(int i=0; i<N; i++){
         result[i].x = currentX;
         result[i].y = currentY;
         result[i].z = currentZ;
         result[i].illumination = currentIll;
+        //cout << currentIll.x << '\n';
         currentX = currentX+x;
         currentY = currentY+y;
         currentZ = currentZ+z;
@@ -195,10 +196,12 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
                     if (line[i].x > rightPixels[j].x){
                         rightPixels[j].x = line[i].x;
                         rightPixels[j].z = line[i].z;
+                        rightPixels[j].illumination = line[i].illumination;
                     }
                     if (line[i].x < leftPixels[j].x){
                         leftPixels[j].x = line[i].x;
                         leftPixels[j].z = line[i].z;
+                        leftPixels[j].illumination = line[i].illumination;
                     }
                 }
             }
@@ -237,7 +240,6 @@ void DrawPolygon( const vector<Vertex>& vertices, screen* screen, vec3 color){
     vector<Pixel> leftPixels;
     vector<Pixel> rightPixels;
     ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-    //cout << "here" << leftPixels[2].z << '\n';
     //draw the rows
     DrawRows(leftPixels, rightPixels, screen, color);
 }
@@ -355,10 +357,11 @@ void Update(){
 }
 
 int main( int argc, char* argv[] ) {
+        cout << "main\n";
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     vector<Triangle> triangles;
     LoadTestModel(triangles);
-    cout << "main\n";
+
     while( NoQuitMessageSDL() ){
         Update();
         Draw(screen, triangles);
