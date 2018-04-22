@@ -42,7 +42,7 @@ struct Pixel {
 };
 
 struct Vertex {
-     vec4 position;
+    vec4 position;
 };
 
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
@@ -171,16 +171,14 @@ void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-        //cout << p.pos3d.x << " " << p.pos3d.y<< " " << p.pos3d.z <<'\n';
+
         float distance = glm::length((lightPos-p.pos3d));
-        //cout << distance <<'\n';
         vec3 D = lightPower*max((float)0, glm::abs(glm::dot(cNormal,(lightPos-p.pos3d))));
         D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
+
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
-        //cout << distance <<'\n';
         vec3 band = getBand(distance);
-        //cout << band.x << '\n';
-        SafePutPixelSDL(screen, x, y, band*color);
+        SafePutPixelSDL(screen, x, y, band*color*illumination);
     }
 }
 
@@ -331,7 +329,7 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
             surround[6] = depthBuffer[y+1][x-1];
             surround[7] = depthBuffer[y+1][x];
             surround[8] = depthBuffer[y+1][x+1];
-
+            //ignore pixels outside cube
             for(int q = 1; q < 9; q++) {
                 if(surround[q] == 0) {
                     flag1 = 1;
@@ -339,7 +337,8 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
             }
             if(flag1 != 1) {
                 for(int z = 1; z < 9; z++) {
-                    if( glm::abs(surround[z] - depthBuffer[y][x]) > 0.1f) {
+                    //if a surrounding pixel depth - main pixel depth is greater than certain distance
+                    if(glm::abs(surround[z] - depthBuffer[y][x]) > 0.05f) {
                         outlinePixel(screen, x, y);
                         break;
                     }
