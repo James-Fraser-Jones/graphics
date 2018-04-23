@@ -29,6 +29,7 @@ vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
+bool blackWhiteMirror = true;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -168,6 +169,61 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
     return bwColour;
 }
 
+void DrawMirroredWall(int x, int y, vec4 lightPos, vec3 lightColor, vec4 dir, Triangle tri, Intersection closestIntersection, const vector<Triangle>& triangles, screen* screen) {
+    //get angle of line
+    //get angle of line after reflection
+    vec4 reflectedLine = glm::reflect(dir, tri.normal);
+    //cout << reflectedLine.z << "\n";
+    vec4 mirrorIntersection = closestIntersection.position;
+    vec4 norm = tri.normal;
+    mirrorIntersection = mirrorIntersection + norm * vec4(0.1f);
+    //find object hit next
+    closestIntersection = {mirrorIntersection, std::numeric_limits<float>::max(), -1};
+    //colour this pixel that colour - add shadows later
+    if (ClosestIntersection(mirrorIntersection, reflectedLine, triangles, closestIntersection)){
+        Triangle tri = triangles[closestIntersection.triangleIndex];
+        if(tri.mirror) {
+            DrawMirroredWall(x, y, lightPos, lightColor, dir, tri, closestIntersection, triangles, screen);
+        }
+        else {
+            // vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+            // vec3 colour = triangles[closestIntersection.triangleIndex].color;
+            // PutPixelSDL(screen, x, y, bwColour*colour);
+            
+            //the good shit
+            //get colour of reflected object
+            vec3 colour = triangles[closestIntersection.triangleIndex].color;
+            // get average of colour values
+            vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+            if(blackWhiteMirror) {
+                float avColourVal = (colour.x + colour.y + colour.z)/3;
+                PutPixelSDL(screen, x, y, avColourVal*bwColour);
+            }
+            else {
+                PutPixelSDL(screen, x, y, colour*bwColour);
+            }
+        }
+        // //get colour of reflected object
+        // vec3 colour = triangles[closestIntersection.triangleIndex].color;
+        // //get average of colour values
+        // vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+        // if(blackWhiteMirror) {
+        //     float avColourVal = (colour.x + colour.y + colour.z)/3;
+        //     PutPixelSDL(screen, x, y, avColourVal*bwColour);
+        // }
+        // else {
+        //     PutPixelSDL(screen, x, y, colour*bwColour);
+        // }
+       
+    }
+    else {
+        //put black pixel if it points to empty space
+        PutPixelSDL(screen, x, y, vec3(0));
+    }
+}
+
+
+
 void Draw(screen* screen, const vector<Triangle>& triangles){
 
     //Clear the buffer
@@ -183,9 +239,9 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
     vec3 lightColor = 14.f * vec3(1);
 
     //lightSource rotates around the room
-    lightPos.x = sin(theta) * 0.8;
-    lightPos.z = cos(theta) * 0.8;
-    theta = theta + 0.05;
+    // lightPos.x = sin(theta) * 0.8;
+    // lightPos.z = cos(theta) * 0.8;
+    // theta = theta + 0.05;
 
     //Loop over all pixels in the image and calculate a ray for each one.
     //omp_set_num_threads(4);
@@ -193,34 +249,28 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
     for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
         for (int x = 0; x < SCREEN_WIDTH; x++){
 
-        //get direction to pixel from middle of camera view
-        float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
-        float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
-        vec4 dir(xf, yf, focalLength, 0);
+            //get direction to pixel from middle of camera view
+            float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
+            float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
+            vec4 dir(xf, yf, focalLength, 0);
 
-        //modify direction to pixel based on camera rotation
-        mat4 M;
-        TransformationMatrix(M, vec4(0), cameraRot);
-        dir = M * dir;
+            //modify direction to pixel based on camera rotation
+            mat4 M;
+            TransformationMatrix(M, vec4(0), cameraRot);
+            dir = M * dir;
 
-        Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
-        if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
-
-            if(triangles[closestIntersection.triangleIndex].mirror) {
-                //get angle of line
-                dir.x = 0-dir.x;
-                dir.y = 0-dir.y;
-                dir.z = 0-dir.z;
-                //get angle of line after reflection
-                //find object hit next
-                //colour this pixel that colour - add shadows later
-
+            Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
+            if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
+                Triangle tri = triangles[closestIntersection.triangleIndex];
+                if(tri.mirror) {
+                   DrawMirroredWall(x, y, lightPos, lightColor, dir, tri, closestIntersection, triangles, screen);
+                }
+                else {
+                    vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+                    vec3 colour = triangles[closestIntersection.triangleIndex].color;
+                    PutPixelSDL(screen, x, y, bwColour*colour);
+                }
             }
-            vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
-            vec3 colour = triangles[closestIntersection.triangleIndex].color;
-            PutPixelSDL(screen, x, y, bwColour*colour);
-        }
-
         }
     }
 }

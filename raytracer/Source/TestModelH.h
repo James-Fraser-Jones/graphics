@@ -71,24 +71,24 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 	vec4 H(0,L,L,1);
 
 	// Floor:
-	triangles.push_back( Triangle( C, B, A, green, false ) );
-	triangles.push_back( Triangle( C, D, B, green, false ) );
+	triangles.push_back( Triangle( C, B, A, white, false ) );
+	triangles.push_back( Triangle( C, D, B, white, false ) );
 
 	// Left wall
-	triangles.push_back( Triangle( A, E, C, purple, false ) );
-	triangles.push_back( Triangle( C, E, G, purple, false ) );
+	triangles.push_back( Triangle( A, E, C, purple, true ) );
+	triangles.push_back( Triangle( C, E, G, purple, true ) );
 
 	// Right wall
-	triangles.push_back( Triangle( F, B, D, yellow, false ) );
-	triangles.push_back( Triangle( H, F, D, yellow, false ) );
+	triangles.push_back( Triangle( F, B, D, yellow, true ) );
+	triangles.push_back( Triangle( H, F, D, yellow, true ) );
 
 	// Ceiling
 	triangles.push_back( Triangle( E, F, G, cyan, false ) );
 	triangles.push_back( Triangle( F, H, G, cyan, false ) );
 
 	// Back wall
-	triangles.push_back( Triangle( G, D, C, white, true ) );
-	triangles.push_back( Triangle( G, H, D, white, true ) );
+	triangles.push_back( Triangle( G, D, C, white, false ) );
+	triangles.push_back( Triangle( G, H, D, white, false ) );
 
 	// ---------------------------------------------------------------------------
 	// Short block
