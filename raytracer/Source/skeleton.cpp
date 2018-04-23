@@ -32,7 +32,7 @@ vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
-bool blackWhiteMirror = false;
+bool blackWhiteMirror = true;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */

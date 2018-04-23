@@ -87,8 +87,8 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 	triangles.push_back( Triangle( F, H, G, white, false ) );
 
 	// Back wall
-	triangles.push_back( Triangle( G, D, C, white, false ) );
-	triangles.push_back( Triangle( G, H, D, white, false ) );
+	triangles.push_back( Triangle( G, D, C, white, true ) );
+	triangles.push_back( Triangle( G, H, D, white, true ) );
 
 	// ---------------------------------------------------------------------------
 	// Short block
@@ -137,24 +137,24 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 	H = vec4(314,330,456,1);
 
 	// Front
-	triangles.push_back( Triangle(E,B,A,blue, true) );
-	triangles.push_back( Triangle(E,F,B,blue, true) );
+	triangles.push_back( Triangle(E,B,A,blue, false) );
+	triangles.push_back( Triangle(E,F,B,blue, false) );
 
 	// Front
-	triangles.push_back( Triangle(F,D,B,blue, true) );
-	triangles.push_back( Triangle(F,H,D,blue, true) );
+	triangles.push_back( Triangle(F,D,B,blue, false) );
+	triangles.push_back( Triangle(F,H,D,blue, false) );
 
 	// BACK
-	triangles.push_back( Triangle(H,C,D,blue, true) );
-	triangles.push_back( Triangle(H,G,C,blue, true) );
+	triangles.push_back( Triangle(H,C,D,blue, false) );
+	triangles.push_back( Triangle(H,G,C,blue, false) );
 
 	// LEFT
-	triangles.push_back( Triangle(G,E,C,blue, true) );
-	triangles.push_back( Triangle(E,A,C,blue, true) );
+	triangles.push_back( Triangle(G,E,C,blue, false) );
+	triangles.push_back( Triangle(E,A,C,blue, false) );
 
 	// TOP
-	triangles.push_back( Triangle(G,F,E,blue, true) );
-	triangles.push_back( Triangle(G,H,F,blue, true) );
+	triangles.push_back( Triangle(G,F,E,blue, false) );
+	triangles.push_back( Triangle(G,H,F,blue, false) );
 
 
 	// ----------------------------------------------
