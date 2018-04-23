@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <math.h>
 
-
 using namespace std;
 using glm::vec3;
 using glm::mat3;
@@ -29,6 +28,12 @@ vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
+float blur = 1;
+
+float depBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
+
+vec3 colBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
+vec3 blurBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -68,41 +73,58 @@ void Update(){
     //Collect button inputs
     float lookSpeed = 0.02;
     float moveSpeed = 0.02;
+    int blurSpeed = 2;
 
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
     const uint8_t* keystate = SDL_GetKeyboardState( 0 );
 
+    if(keystate[SDL_SCANCODE_LSHIFT]){
+      moveSpeed = 3*moveSpeed;
+      lookSpeed = 3*lookSpeed;
+    }
+
     if(keystate[SDL_SCANCODE_LEFT]){
-    lookVector.y = -1;
+      lookVector.y = -1;
     }
     else if(keystate[SDL_SCANCODE_RIGHT]){
-    lookVector.y = 1;
+      lookVector.y = 1;
     }
     if(keystate[SDL_SCANCODE_UP]){
-    lookVector.x = 1;
+      lookVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_DOWN]){
-    lookVector.x = -1;
+      lookVector.x = -1;
     }
 
     if(keystate[SDL_SCANCODE_W]){
-    moveVector.z = -1;
+      moveVector.z = -1;
     }
     else if(keystate[SDL_SCANCODE_S]){
-    moveVector.z = 1;
+      moveVector.z = 1;
     }
     if(keystate[SDL_SCANCODE_A]){
-    moveVector.x = 1;
+      moveVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_D]){
-    moveVector.x = -1;
+      moveVector.x = -1;
     }
     if(keystate[SDL_SCANCODE_SPACE]){
-    moveVector.y = 1;
+      moveVector.y = 1;
     }
     else if(keystate[SDL_SCANCODE_LCTRL]){
-    moveVector.y = -1;
+      moveVector.y = -1;
+    }
+
+    if(keystate[SDL_SCANCODE_O]){
+      if (blur <= (min(SCREEN_HEIGHT, SCREEN_WIDTH) - blurSpeed)){
+        blur += blurSpeed;
+      }
+    }
+    else if(keystate[SDL_SCANCODE_P]){
+      if (blur > blurSpeed){
+        blur -= blurSpeed;
+      }
     }
 
     //Modify global variables
@@ -168,6 +190,93 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
     return bwColour;
 }
 
+void godBlur(int r){
+  if (((r%2) == 1) && (r <= min(SCREEN_WIDTH, SCREEN_HEIGHT))){ //r must be odd else there will be a non-integer number of neighbours
+
+    int neigh = (r-1)/2; //number of neighbours on either side of the current pixel;
+    //vec3 blurBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
+
+    //perform horizontal blur
+    for (int i = 0; i < SCREEN_HEIGHT; i++){ //loop over rows
+
+      vec3 acc = vec3(0); //accumulator for row
+      int li = 0; //index for left part of row
+      int ri = neigh; //index for right part of row
+      int ti = neigh + 1; //total number of cells in accumulator
+
+      for (int j = 0; j <= ri; j++){ //initialize accumulator
+        acc = acc + colBuf[i][j];
+      }
+
+      for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+        blurBuf[i][j] = acc/(float) ti;
+        ri += 1;
+        ti += 1;
+        acc = acc + colBuf[i][ri];
+      }
+
+      for (int j = neigh; j < SCREEN_WIDTH - neigh; j++){ //blur cells with enough neighbours on both sides
+        blurBuf[i][j] = acc/(float) ti;
+        acc = acc - colBuf[i][li];
+        li += 1;
+        ri += 1;
+        acc = acc + colBuf[i][ri];
+      }
+
+      for (int j = SCREEN_WIDTH - neigh; j < SCREEN_WIDTH; j++){ //blur cells with not enough neighbours on the right
+        blurBuf[i][j] = acc/(float) ti;
+        acc = acc - colBuf[i][li];
+        li += 1;
+        ti -= 1;
+      }
+    }
+
+    //perform vertical blur
+    for (int i = 0; i < SCREEN_WIDTH; i++){ //loop over columns
+
+      /*
+      for (int j = 0; j < SCREEN_HEIGHT; j++){
+        colBuf[j][i] = blurBuf[j][i];
+      }
+      */
+
+      //*
+      vec3 acc = vec3(0); //accumulator for column
+      int li = 0; //index for top part of column
+      int ri = neigh; //index for bottom part of column
+      int ti = neigh + 1; //total number of cells in accumulator
+
+      for (int j = 0; j <= ri; j++){ //initialize accumulator
+        acc = acc + blurBuf[j][i];
+      }
+
+      for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+        colBuf[j][i] = acc/(float) ti;
+        ri += 1;
+        ti += 1;
+        acc = acc + blurBuf[ri][i];
+      }
+
+      for (int j = neigh; j < SCREEN_HEIGHT - neigh; j++){ //blur cells with enough neighbours on both sides
+        colBuf[j][i] = acc/(float) ti;
+        acc = acc - blurBuf[li][i];
+        li += 1;
+        ri += 1;
+        acc = acc + blurBuf[ri][i];
+      }
+
+      for (int j = SCREEN_HEIGHT - neigh; j < SCREEN_HEIGHT; j++){ //blur cells with not enough neighbours on the right
+        colBuf[j][i] = acc/(float) ti;
+        acc = acc - blurBuf[li][i];
+        li += 1;
+        ti -= 1;
+      }
+      //*/
+    }
+
+  }
+}
+
 void Draw(screen* screen, const vector<Triangle>& triangles){
 
     //Clear the buffer
@@ -188,28 +297,38 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
     theta = theta + 0.05;
 
     //Loop over all pixels in the image and calculate a ray for each one.
-    //omp_set_num_threads(4);
     #pragma omp parallel for
     for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
         for (int x = 0; x < SCREEN_WIDTH; x++){
+          //get direction to pixel from middle of camera view
+          float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
+          float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
+          vec4 dir(xf, yf, focalLength, 0);
 
-        //get direction to pixel from middle of camera view
-        float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
-        float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
-        vec4 dir(xf, yf, focalLength, 0);
+          //modify direction to pixel based on camera rotation
+          mat4 M;
+          TransformationMatrix(M, vec4(0), cameraRot);
+          dir = M * dir;
 
-        //modify direction to pixel based on camera rotation
-        mat4 M;
-        TransformationMatrix(M, vec4(0), cameraRot);
-        dir = M * dir;
-
-        Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
-        if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
-            vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
-            vec3 colour = triangles[closestIntersection.triangleIndex].color;
-            PutPixelSDL(screen, x, y, bwColour*colour);
+          Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
+          if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
+              depBuf[y][x] = 1/closestIntersection.distance;
+              vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+              vec3 colour = triangles[closestIntersection.triangleIndex].color;
+              colBuf[y][x] = bwColour*colour;
+          }
+          else{
+            colBuf[y][x] = vec3(0);
+            depBuf[y][x] = 0;
+          }
         }
+    }
 
+    godBlur(blur); //apply blur
+
+    for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
+        for (int x = 0; x < SCREEN_WIDTH; x++){
+          PutPixelSDL(screen, x, y, colBuf[y][x]);
         }
     }
 }
