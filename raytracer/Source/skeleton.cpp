@@ -20,6 +20,9 @@ struct Intersection{
   int triangleIndex;
 };
 
+//lightSource with constants
+vec4 lightPos;
+
 #define SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 256
 #define FULLSCREEN_MODE false
@@ -169,6 +172,20 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
     return bwColour;
 }
 
+// vec3 SoftLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
+//     vec3 bwColour = vec3(0);
+//     for(int x = 0; x < 20; x++) {
+//         if(bwColour.x > 1 || bwColour.y > 1 || bwColour.z > 1) break;
+//         for(int y = 0; y < 20; y++) {
+//             if(bwColour.x > 1 || bwColour.y > 1 || bwColour.z > 1) break;
+//             lightPos.z = lightPos.z+0.1;
+//             bwColour += DirectLight(i, lightPos, lightColor, triangles);
+//         }
+//         lightPos.x = lightPos.x+0.1;
+//     }
+//     return bwColour;
+// }
+
 void DrawMirroredWall(int x, int y, vec4 lightPos, vec3 lightColor, vec4 dir, Triangle tri, Intersection closestIntersection, const vector<Triangle>& triangles, screen* screen) {
     //get angle of line
     //get angle of line after reflection
@@ -176,7 +193,7 @@ void DrawMirroredWall(int x, int y, vec4 lightPos, vec3 lightColor, vec4 dir, Tr
     //cout << reflectedLine.z << "\n";
     vec4 mirrorIntersection = closestIntersection.position;
     vec4 norm = tri.normal;
-    mirrorIntersection = mirrorIntersection + norm * vec4(0.1f);
+    mirrorIntersection = mirrorIntersection + norm * vec4(0.001f);
     //find object hit next
     closestIntersection = {mirrorIntersection, std::numeric_limits<float>::max(), -1};
     //colour this pixel that colour - add shadows later
@@ -232,10 +249,6 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
     //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
     float focalLength = 1;
 
-    //lightSource with constants
-    vec4 lightPos;
-    lightPos.y = -0.5;
-    lightPos.w = 1.0;
     vec3 lightColor = 14.f * vec3(1);
 
     //lightSource rotates around the room
@@ -266,6 +279,7 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
                    DrawMirroredWall(x, y, lightPos, lightColor, dir, tri, closestIntersection, triangles, screen);
                 }
                 else {
+                    //vec3 bwColour = SoftLight(closestIntersection, lightPos, lightColor, triangles);
                     vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
                     vec3 colour = triangles[closestIntersection.triangleIndex].color;
                     PutPixelSDL(screen, x, y, bwColour*colour);
@@ -283,6 +297,8 @@ int main(int argc, char* argv[]){
     vector<Triangle> triangles;
     LoadTestModel(triangles);
 
+    lightPos.y = -0.5;
+    lightPos.w = 1.0;
     //Enter the rendering loop
     while(NoQuitMessageSDL()){
         Update();
