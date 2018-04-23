@@ -205,6 +205,17 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
         Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
         if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
+
+            if(triangles[closestIntersection.triangleIndex].mirror) {
+                //get angle of line
+                dir.x = 0-dir.x;
+                dir.y = 0-dir.y;
+                dir.z = 0-dir.z;
+                //get angle of line after reflection
+                //find object hit next
+                //colour this pixel that colour - add shadows later
+
+            }
             vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
             vec3 colour = triangles[closestIntersection.triangleIndex].color;
             PutPixelSDL(screen, x, y, bwColour*colour);
