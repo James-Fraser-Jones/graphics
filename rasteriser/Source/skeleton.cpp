@@ -25,7 +25,9 @@ vec4 cameraPos(0, 0, -2.001, 1); //removing the 0.001 will cause a crash to occo
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
-vec4 lightPos(0,-0.7,0,1);
+//vec4 lightPos(0,-0.7,0,1);
+float theta = 0.0f;
+vec4 lightPos(-0.8, -0.5, -0.8, 1.0);
 vec3 lightPower = 7.0f*vec3(1);
 vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
@@ -178,7 +180,7 @@ void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
 
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
         vec3 band = getBand(distance);
-        SafePutPixelSDL(screen, x, y, band*color*illumination);
+        SafePutPixelSDL(screen, x, y, band*color);
     }
 }
 
@@ -358,42 +360,54 @@ void Update(){
     std::cout << "Render time: " << dt << " ms." << std::endl;
     //*/
 
+
+    const uint8_t* keystate = SDL_GetKeyboardState( 0 );
+    lightPos.x = sin(theta) * 0.8;
+    lightPos.z = cos(theta) * 0.8;
+    if(keystate[SDL_SCANCODE_Z]){
+        theta = theta + 0.1;
+    }
+    if(keystate[SDL_SCANCODE_X]){
+        theta = theta - 0.1;
+    }
+
+
     float lookSpeed = 0.02;
     float moveSpeed = 0.02;
 
     //Collect button inputs
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
-    const uint8_t* keystate = SDL_GetKeyboardState( 0 );
+
     if(keystate[SDL_SCANCODE_LEFT]){
-    lookVector.y = -1;
+        lookVector.y = -1;
     }
     else if(keystate[SDL_SCANCODE_RIGHT]){
-    lookVector.y = 1;
+        lookVector.y = 1;
     }
     if(keystate[SDL_SCANCODE_UP]){
-    lookVector.x = 1;
+        lookVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_DOWN]){
-    lookVector.x = -1;
+        lookVector.x = -1;
     }
     if(keystate[SDL_SCANCODE_W]){
-    moveVector.z = -1;
+        moveVector.z = -1;
     }
     else if(keystate[SDL_SCANCODE_S]){
-    moveVector.z = 1;
+        moveVector.z = 1;
     }
     if(keystate[SDL_SCANCODE_A]){
-    moveVector.x = 1;
+        moveVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_D]){
-    moveVector.x = -1;
+        moveVector.x = -1;
     }
     if(keystate[SDL_SCANCODE_SPACE]){
-    moveVector.y = 1;
+        moveVector.y = 1;
     }
     else if(keystate[SDL_SCANCODE_LCTRL]){
-    moveVector.y = -1;
+        moveVector.y = -1;
     }
 
     //*
