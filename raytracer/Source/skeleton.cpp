@@ -29,8 +29,8 @@ vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
 
-float blur = 2;
-float focus = 0.5;
+//float blur = 2;
+float focus = 0;
 
 float depBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
 
@@ -77,7 +77,7 @@ void Update(){
     float moveSpeed = 0.02;
 
     //float blurSpeed = 0.2;
-    float focusSpeed = 0.015;
+    float focusSpeed = 0.2;
 
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
@@ -345,29 +345,29 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
 
           Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
           if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
-              depBuf[y][x] = 1/closestIntersection.distance;
+              depBuf[y][x] = closestIntersection.distance;
               vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
               vec3 colour = triangles[closestIntersection.triangleIndex].color;
               colBuf[y][x] = bwColour*colour;
           }
           else{
             colBuf[y][x] = vec3(0);
-            depBuf[y][x] = 0;
+            depBuf[y][x] = std::numeric_limits<float>::max();
           }
         }
     }
 
-
-    godBlur(7*blur, 0.0, 0.1); //apply blur
-    godBlur(5*blur, 0.1, 0.2); //apply blur
-    godBlur(3*blur, 0.2, 0.3); //apply blur
-
-    godBlur(3*blur, 0.7, 0.8); //apply blur
-    godBlur(5*blur, 0.8, 0.9); //apply blur
-    godBlur(7*blur, 0.9, 1.0); //apply blur
-
-    godBlur(9*blur, -100.0, 0.0); //apply blur
-    godBlur(9*blur, 1.0, 100.0); //apply blur
+    godBlur(11, -100.0, 1.0); //apply blur
+    godBlur(9, 1.0, 2.0); //apply blur
+    godBlur(7, 2.0, 3.0); //apply blur
+    godBlur(5, 3.0, 4.0); //apply blur
+    godBlur(3, 4.0, 5.0); //apply blur
+    //godBlur(9, 5.0, 6.0); //apply blur
+    godBlur(3, 6.0, 7.0); //apply blur
+    godBlur(5, 7.0, 8.0); //apply blur
+    godBlur(7, 8.0, 9.0); //apply blur
+    godBlur(9, 9.0, 10.0); //apply blur
+    godBlur(11, 10.0, 100.0); //apply blur
 
     for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
         for (int x = 0; x < SCREEN_WIDTH; x++){
