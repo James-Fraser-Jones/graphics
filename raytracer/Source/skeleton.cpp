@@ -29,8 +29,8 @@ vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
 
-float blur = 1;
-float focus = 0;
+float blur = 2;
+float focus = 0.5;
 
 float depBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
 
@@ -76,8 +76,8 @@ void Update(){
     float lookSpeed = 0.02;
     float moveSpeed = 0.02;
 
-    float blurSpeed = 0.2;
-    float focusSpeed = 0.02;
+    //float blurSpeed = 0.2;
+    float focusSpeed = 0.015;
 
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
@@ -120,6 +120,7 @@ void Update(){
       moveVector.y = -1;
     }
 
+    /*
     if(keystate[SDL_SCANCODE_O]){
       if (blur <= (min(SCREEN_HEIGHT, SCREEN_WIDTH) - blurSpeed)){
         blur += blurSpeed;
@@ -130,6 +131,7 @@ void Update(){
         blur -= blurSpeed;
       }
     }
+    */
 
     if(keystate[SDL_SCANCODE_K]){
       focus += focusSpeed;
@@ -202,8 +204,8 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
 }
 
 void godBlur(float a, float minDepth, float maxDepth){
-
   int r = (int) a;
+
   minDepth += focus;
   maxDepth += focus;
 
@@ -355,15 +357,17 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
         }
     }
 
-    godBlur(9*blur, 0.0, 0.1); //apply blur
-    godBlur(7*blur, 0.1, 0.2); //apply blur
-    godBlur(5*blur, 0.2, 0.3); //apply blur
-    godBlur(3*blur, 0.3, 0.4); //apply blur
 
-    godBlur(3*blur, 0.6, 0.7); //apply blur
-    godBlur(5*blur, 0.7, 0.8); //apply blur
-    godBlur(7*blur, 0.8, 0.9); //apply blur
-    godBlur(9*blur, 0.9, 100.0); //apply blur
+    godBlur(7*blur, 0.0, 0.1); //apply blur
+    godBlur(5*blur, 0.1, 0.2); //apply blur
+    godBlur(3*blur, 0.2, 0.3); //apply blur
+
+    godBlur(3*blur, 0.7, 0.8); //apply blur
+    godBlur(5*blur, 0.8, 0.9); //apply blur
+    godBlur(7*blur, 0.9, 1.0); //apply blur
+
+    godBlur(9*blur, -100.0, 0.0); //apply blur
+    godBlur(9*blur, 1.0, 100.0); //apply blur
 
     for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
         for (int x = 0; x < SCREEN_WIDTH; x++){
@@ -385,8 +389,6 @@ int main(int argc, char* argv[]){
         Update();
         Draw(screen, triangles);
         SDL_Renderframe(screen);
-        //cout << depBuf[SCREEN_HEIGHT/2][SCREEN_WIDTH/2] << "\n";
-        cout << blur << "\n";
     }
 
     //Finalise
