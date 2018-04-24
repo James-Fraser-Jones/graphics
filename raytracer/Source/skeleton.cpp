@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <math.h>
 
-
 using namespace std;
 using glm::vec3;
 using glm::mat3;
@@ -33,6 +32,14 @@ vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
 bool blackWhiteMirror = false;
+
+//float blur = 2;
+float focus = 0;
+
+float depBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
+
+vec3 colBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
+vec3 blurBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -73,40 +80,68 @@ void Update(){
     float lookSpeed = 0.02;
     float moveSpeed = 0.02;
 
+    //float blurSpeed = 0.2;
+    float focusSpeed = 0.2;
+
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
     const uint8_t* keystate = SDL_GetKeyboardState( 0 );
 
+    if(keystate[SDL_SCANCODE_LSHIFT]){
+      moveSpeed = 3*moveSpeed;
+      lookSpeed = 3*lookSpeed;
+    }
+
     if(keystate[SDL_SCANCODE_LEFT]){
-    lookVector.y = -1;
+      lookVector.y = -1;
     }
     else if(keystate[SDL_SCANCODE_RIGHT]){
-    lookVector.y = 1;
+      lookVector.y = 1;
     }
     if(keystate[SDL_SCANCODE_UP]){
-    lookVector.x = 1;
+      lookVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_DOWN]){
-    lookVector.x = -1;
+      lookVector.x = -1;
     }
 
     if(keystate[SDL_SCANCODE_W]){
-    moveVector.z = -1;
+      moveVector.z = -1;
     }
     else if(keystate[SDL_SCANCODE_S]){
-    moveVector.z = 1;
+      moveVector.z = 1;
     }
     if(keystate[SDL_SCANCODE_A]){
-    moveVector.x = 1;
+      moveVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_D]){
-    moveVector.x = -1;
+      moveVector.x = -1;
     }
     if(keystate[SDL_SCANCODE_SPACE]){
-    moveVector.y = 1;
+      moveVector.y = 1;
     }
     else if(keystate[SDL_SCANCODE_LCTRL]){
-    moveVector.y = -1;
+      moveVector.y = -1;
+    }
+
+    /*
+    if(keystate[SDL_SCANCODE_O]){
+      if (blur <= (min(SCREEN_HEIGHT, SCREEN_WIDTH) - blurSpeed)){
+        blur += blurSpeed;
+      }
+    }
+    else if(keystate[SDL_SCANCODE_P]){
+      if (blur > blurSpeed){
+        blur -= blurSpeed;
+      }
+    }
+    */
+
+    if(keystate[SDL_SCANCODE_K]){
+      focus += focusSpeed;
+    }
+    else if(keystate[SDL_SCANCODE_L]){
+      focus -= focusSpeed;
     }
 
     //Modify global variables
@@ -172,6 +207,113 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
     return bwColour;
 }
 
+void godBlur(float a, float minDepth, float maxDepth){
+  int r = (int) a;
+
+  minDepth += focus;
+  maxDepth += focus;
+
+  if (r < 1){ //ensure that r is within the correct bounds
+    r = 1;
+  }
+  else if (r > min(SCREEN_WIDTH, SCREEN_HEIGHT)){
+    r = min(SCREEN_WIDTH, SCREEN_HEIGHT);
+  }
+  if (r%2 != 1){ //ensure that r is odd
+    r -= 1;
+  }
+
+  int neigh = (r-1)/2; //number of neighbours on either side of the current pixel;
+
+  //perform horizontal blur
+  for (int i = 0; i < SCREEN_HEIGHT; i++){ //loop over rows
+
+    vec3 acc = vec3(0); //accumulator for row
+    int li = 0; //index for left part of row
+    int ri = neigh; //index for right part of row
+    int ti = neigh + 1; //total number of cells in accumulator
+
+    for (int j = 0; j <= ri; j++){ //initialize accumulator
+      acc = acc + colBuf[i][j];
+    }
+    //*
+    for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+      blurBuf[i][j] = acc/(float) ti;
+      ri += 1;
+      ti += 1;
+      acc = acc + colBuf[i][ri];
+    }
+    //*/
+    //*
+    for (int j = neigh; j < SCREEN_WIDTH - neigh; j++){ //blur cells with enough neighbours on both sides
+      blurBuf[i][j] = acc/(float) ti;
+      acc = acc - colBuf[i][li];
+      li += 1;
+      ri += 1;
+      acc = acc + colBuf[i][ri];
+    }
+    //*/
+    //*
+    for (int j = SCREEN_WIDTH - neigh; j < SCREEN_WIDTH; j++){ //blur cells with not enough neighbours on the right
+      blurBuf[i][j] = acc/(float) ti;
+      acc = acc - colBuf[i][li];
+      li += 1;
+      ti -= 1;
+    }
+    //*/
+  }
+
+  //perform vertical blur
+  for (int i = 0; i < SCREEN_WIDTH; i++){ //loop over columns
+
+    /*
+    for (int j = 0; j < SCREEN_HEIGHT; j++){
+      colBuf[j][i] = blurBuf[j][i];
+    }
+    //*/
+
+    vec3 acc = vec3(0); //accumulator for column
+    int li = 0; //index for top part of column
+    int ri = neigh; //index for bottom part of column
+    int ti = neigh + 1; //total number of cells in accumulator
+
+    for (int j = 0; j <= ri; j++){ //initialize accumulator
+      acc = acc + blurBuf[j][i];
+    }
+    //*
+    for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+        colBuf[j][i] = acc/(float) ti;
+      }
+      ri += 1;
+      ti += 1;
+      acc = acc + blurBuf[ri][i];
+    }
+    //*/
+    //*
+    for (int j = neigh; j < SCREEN_HEIGHT - neigh; j++){ //blur cells with enough neighbours on both sides
+      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+        colBuf[j][i] = acc/(float) ti;
+      }
+      acc = acc - blurBuf[li][i];
+      li += 1;
+      ri += 1;
+      acc = acc + blurBuf[ri][i];
+    }
+    //*/
+    //* problem is happening here somehow
+    for (int j = SCREEN_HEIGHT - neigh; j < SCREEN_HEIGHT; j++){ //blur cells with not enough neighbours on the right
+      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+        colBuf[j][i] = acc/(float) ti;
+      }
+      acc = acc - blurBuf[li][i];
+      li += 1;
+      ti -= 1;
+    }
+    //*/
+  }
+}
+
 // vec3 SoftLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
 //     vec3 bwColour = vec3(0);
 //     for(int x = 0; x < 20; x++) {
@@ -205,16 +347,19 @@ void DrawMirroredWall(int x, int y, vec4 lightPos, vec3 lightColor, vec4 dir, Tr
         vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
         if(blackWhiteMirror) {
             float avColourVal = (colour.x + colour.y + colour.z)/3;
-            PutPixelSDL(screen, x, y, avColourVal*bwColour);
+            colBuf[y][x] = bwColour*colour;
+            //PutPixelSDL(screen, x, y, avColourVal*bwColour);
         }
         else {
-            PutPixelSDL(screen, x, y, colour*bwColour);
+            colBuf[y][x] = bwColour*colour;
+            //PutPixelSDL(screen, x, y, colour*bwColour);
         }
        
     }
     else {
         //put black pixel if it points to empty space
-        PutPixelSDL(screen, x, y, vec3(0));
+        colBuf[y][x] = vec3(0);
+        //PutPixelSDL(screen, x, y, vec3(0));
     }
 }
 
@@ -236,11 +381,9 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
     // theta = theta + 0.05;
 
     //Loop over all pixels in the image and calculate a ray for each one.
-    //omp_set_num_threads(4);
     #pragma omp parallel for
     for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
         for (int x = 0; x < SCREEN_WIDTH; x++){
-
             //get direction to pixel from middle of camera view
             float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
             float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
@@ -251,19 +394,43 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
             TransformationMatrix(M, vec4(0), cameraRot);
             dir = M * dir;
 
+            
+
             Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
             if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
                 Triangle tri = triangles[closestIntersection.triangleIndex];
                 if(tri.mirror) {
-                   DrawMirroredWall(x, y, lightPos, lightColor, dir, tri, closestIntersection, triangles, screen);
+                DrawMirroredWall(x, y, lightPos, lightColor, dir, tri, closestIntersection, triangles, screen);
                 }
                 else {
-                    //vec3 bwColour = SoftLight(closestIntersection, lightPos, lightColor, triangles);
+                    depBuf[y][x] = closestIntersection.distance;
                     vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
                     vec3 colour = triangles[closestIntersection.triangleIndex].color;
-                    PutPixelSDL(screen, x, y, bwColour*colour);
+                    colBuf[y][x] = bwColour*colour;
                 }
             }
+            else{
+                colBuf[y][x] = vec3(0);
+                depBuf[y][x] = std::numeric_limits<float>::max();
+            }
+        }
+    }
+
+    godBlur(11, -100.0, 1.0); //apply blur
+    godBlur(9, 1.0, 2.0); //apply blur
+    godBlur(7, 2.0, 3.0); //apply blur
+    godBlur(5, 3.0, 4.0); //apply blur
+    godBlur(3, 4.0, 5.0); //apply blur
+    //godBlur(9, 5.0, 6.0); //apply blur
+    godBlur(3, 6.0, 7.0); //apply blur
+    godBlur(5, 7.0, 8.0); //apply blur
+    godBlur(7, 8.0, 9.0); //apply blur
+    godBlur(9, 9.0, 10.0); //apply blur
+    godBlur(11, 10.0, 100.0); //apply blur
+
+    for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
+        for (int x = 0; x < SCREEN_WIDTH; x++){
+          PutPixelSDL(screen, x, y, colBuf[y][x]);
         }
     }
 }
@@ -280,6 +447,7 @@ int main(int argc, char* argv[]){
     lightPos.w = 1.0;
     //Enter the rendering loop
     while(NoQuitMessageSDL()){
+        cout << "Focus: " << focus << "\n";
         Update();
         Draw(screen, triangles);
         SDL_Renderframe(screen);
