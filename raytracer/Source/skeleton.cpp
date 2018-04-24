@@ -386,6 +386,7 @@ int main(int argc, char* argv[]){
 
     //Enter the rendering loop
     while(NoQuitMessageSDL()){
+        cout << "Focus: " << focus << "\n";
         Update();
         Draw(screen, triangles);
         SDL_Renderframe(screen);
