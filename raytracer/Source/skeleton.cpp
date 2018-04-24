@@ -28,7 +28,9 @@ vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
+
 float blur = 1;
+float focus = 0;
 
 float depBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
 
@@ -73,7 +75,9 @@ void Update(){
     //Collect button inputs
     float lookSpeed = 0.02;
     float moveSpeed = 0.02;
+
     float blurSpeed = 0.2;
+    float focusSpeed = 0.02;
 
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
@@ -125,6 +129,13 @@ void Update(){
       if (blur > blurSpeed){
         blur -= blurSpeed;
       }
+    }
+
+    if(keystate[SDL_SCANCODE_K]){
+      focus += focusSpeed;
+    }
+    else if(keystate[SDL_SCANCODE_L]){
+      focus -= focusSpeed;
     }
 
     //Modify global variables
@@ -193,6 +204,8 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
 void godBlur(float a, float minDepth, float maxDepth){
 
   int r = (int) a;
+  minDepth += focus;
+  maxDepth += focus;
 
   if (r < 1){ //ensure that r is within the correct bounds
     r = 1;
