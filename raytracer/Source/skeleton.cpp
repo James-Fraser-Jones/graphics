@@ -22,8 +22,8 @@ struct Intersection{
 //lightSource with constants
 vec4 lightPos;
 
-#define SCREEN_WIDTH 256
-#define SCREEN_HEIGHT 256
+#define SCREEN_WIDTH 512
+#define SCREEN_HEIGHT 512
 #define FULLSCREEN_MODE false
 
 vec4 cameraPos(0, 0, -3.001, 1); //removing the 0.001 will cause a crash to occour
@@ -81,7 +81,7 @@ void Update(){
     float moveSpeed = 0.02;
 
     //float blurSpeed = 0.2;
-    float focusSpeed = 0.2;
+    float focusSpeed = 0.1;
 
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
@@ -208,110 +208,110 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
 }
 
 void godBlur(float a, float minDepth, float maxDepth){
-  int r = (int) a;
+    int r = (int) a;
 
-  minDepth += focus;
-  maxDepth += focus;
+    minDepth += focus;
+    maxDepth += focus;
 
-  if (r < 1){ //ensure that r is within the correct bounds
-    r = 1;
-  }
-  else if (r > min(SCREEN_WIDTH, SCREEN_HEIGHT)){
-    r = min(SCREEN_WIDTH, SCREEN_HEIGHT);
-  }
-  if (r%2 != 1){ //ensure that r is odd
-    r -= 1;
-  }
-
-  int neigh = (r-1)/2; //number of neighbours on either side of the current pixel;
-
-  //perform horizontal blur
-  for (int i = 0; i < SCREEN_HEIGHT; i++){ //loop over rows
-
-    vec3 acc = vec3(0); //accumulator for row
-    int li = 0; //index for left part of row
-    int ri = neigh; //index for right part of row
-    int ti = neigh + 1; //total number of cells in accumulator
-
-    for (int j = 0; j <= ri; j++){ //initialize accumulator
-      acc = acc + colBuf[i][j];
+    if (r < 1){ //ensure that r is within the correct bounds
+        r = 1;
     }
-    //*
-    for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
-      blurBuf[i][j] = acc/(float) ti;
-      ri += 1;
-      ti += 1;
-      acc = acc + colBuf[i][ri];
+    else if (r > min(SCREEN_WIDTH, SCREEN_HEIGHT)){
+        r = min(SCREEN_WIDTH, SCREEN_HEIGHT);
     }
-    //*/
-    //*
-    for (int j = neigh; j < SCREEN_WIDTH - neigh; j++){ //blur cells with enough neighbours on both sides
-      blurBuf[i][j] = acc/(float) ti;
-      acc = acc - colBuf[i][li];
-      li += 1;
-      ri += 1;
-      acc = acc + colBuf[i][ri];
+    if (r%2 != 1){ //ensure that r is odd
+        r -= 1;
     }
-    //*/
-    //*
-    for (int j = SCREEN_WIDTH - neigh; j < SCREEN_WIDTH; j++){ //blur cells with not enough neighbours on the right
-      blurBuf[i][j] = acc/(float) ti;
-      acc = acc - colBuf[i][li];
-      li += 1;
-      ti -= 1;
-    }
-    //*/
-  }
 
-  //perform vertical blur
-  for (int i = 0; i < SCREEN_WIDTH; i++){ //loop over columns
+    int neigh = (r-1)/2; //number of neighbours on either side of the current pixel;
 
-    /*
-    for (int j = 0; j < SCREEN_HEIGHT; j++){
-      colBuf[j][i] = blurBuf[j][i];
-    }
-    //*/
+    //perform horizontal blur
+    for (int i = 0; i < SCREEN_HEIGHT; i++){ //loop over rows
 
-    vec3 acc = vec3(0); //accumulator for column
-    int li = 0; //index for top part of column
-    int ri = neigh; //index for bottom part of column
-    int ti = neigh + 1; //total number of cells in accumulator
+        vec3 acc = vec3(0); //accumulator for row
+        int li = 0; //index for left part of row
+        int ri = neigh; //index for right part of row
+        int ti = neigh + 1; //total number of cells in accumulator
 
-    for (int j = 0; j <= ri; j++){ //initialize accumulator
-      acc = acc + blurBuf[j][i];
+        for (int j = 0; j <= ri; j++){ //initialize accumulator
+            acc = acc + colBuf[i][j];
+        }
+        //*
+        for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+            blurBuf[i][j] = acc/(float) ti;
+            ri += 1;
+            ti += 1;
+            acc = acc + colBuf[i][ri];
+        }
+        //*/
+        //*
+        for (int j = neigh; j < SCREEN_WIDTH - neigh; j++){ //blur cells with enough neighbours on both sides
+            blurBuf[i][j] = acc/(float) ti;
+            acc = acc - colBuf[i][li];
+            li += 1;
+            ri += 1;
+            acc = acc + colBuf[i][ri];
+        }
+        //*/
+        //*
+        for (int j = SCREEN_WIDTH - neigh; j < SCREEN_WIDTH; j++){ //blur cells with not enough neighbours on the right
+            blurBuf[i][j] = acc/(float) ti;
+            acc = acc - colBuf[i][li];
+            li += 1;
+            ti -= 1;
+        }
+        //*/
     }
-    //*
-    for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
-      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
-        colBuf[j][i] = acc/(float) ti;
-      }
-      ri += 1;
-      ti += 1;
-      acc = acc + blurBuf[ri][i];
+
+    //perform vertical blur
+    for (int i = 0; i < SCREEN_WIDTH; i++){ //loop over columns
+
+        /*
+        for (int j = 0; j < SCREEN_HEIGHT; j++){
+        colBuf[j][i] = blurBuf[j][i];
+        }
+        //*/
+
+        vec3 acc = vec3(0); //accumulator for column
+        int li = 0; //index for top part of column
+        int ri = neigh; //index for bottom part of column
+        int ti = neigh + 1; //total number of cells in accumulator
+
+        for (int j = 0; j <= ri; j++){ //initialize accumulator
+            acc = acc + blurBuf[j][i];
+        }
+        //*
+        for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+            if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+                colBuf[j][i] = acc/(float) ti;
+            }
+        ri += 1;
+        ti += 1;
+        acc = acc + blurBuf[ri][i];
+        }
+        //*/
+        //*
+        for (int j = neigh; j < SCREEN_HEIGHT - neigh; j++){ //blur cells with enough neighbours on both sides
+            if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+                colBuf[j][i] = acc/(float) ti;
+            }
+            acc = acc - blurBuf[li][i];
+            li += 1;
+            ri += 1;
+            acc = acc + blurBuf[ri][i];
+        }
+        //*/
+        //* problem is happening here somehow
+        for (int j = SCREEN_HEIGHT - neigh; j < SCREEN_HEIGHT; j++){ //blur cells with not enough neighbours on the right
+            if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+                colBuf[j][i] = acc/(float) ti;
+            }
+            acc = acc - blurBuf[li][i];
+            li += 1;
+            ti -= 1;
+        }
+        //*/
     }
-    //*/
-    //*
-    for (int j = neigh; j < SCREEN_HEIGHT - neigh; j++){ //blur cells with enough neighbours on both sides
-      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
-        colBuf[j][i] = acc/(float) ti;
-      }
-      acc = acc - blurBuf[li][i];
-      li += 1;
-      ri += 1;
-      acc = acc + blurBuf[ri][i];
-    }
-    //*/
-    //* problem is happening here somehow
-    for (int j = SCREEN_HEIGHT - neigh; j < SCREEN_HEIGHT; j++){ //blur cells with not enough neighbours on the right
-      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
-        colBuf[j][i] = acc/(float) ti;
-      }
-      acc = acc - blurBuf[li][i];
-      li += 1;
-      ti -= 1;
-    }
-    //*/
-  }
 }
 
 // vec3 SoftLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
@@ -335,6 +335,7 @@ void DrawMirroredWall(int x, int y, vec4 lightPos, vec3 lightColor, vec4 dir, Tr
     //cout << reflectedLine.z << "\n";
     vec4 mirrorIntersection = closestIntersection.position;
     vec4 norm = tri.normal;
+    vec3 mirrTint = tri.color;
     mirrorIntersection = mirrorIntersection + norm * vec4(0.001f);
     //find object hit next
     closestIntersection = {mirrorIntersection, std::numeric_limits<float>::max(), -1};
@@ -347,18 +348,18 @@ void DrawMirroredWall(int x, int y, vec4 lightPos, vec3 lightColor, vec4 dir, Tr
         vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
         if(blackWhiteMirror) {
             float avColourVal = (colour.x + colour.y + colour.z)/3;
-            colBuf[y][x] = bwColour*colour;
+            colBuf[y][x] = bwColour*avColourVal;
             //PutPixelSDL(screen, x, y, avColourVal*bwColour);
         }
         else {
-            colBuf[y][x] = bwColour*colour;
+            colBuf[y][x] = bwColour*colour*mirrTint;
             //PutPixelSDL(screen, x, y, colour*bwColour);
         }
        
     }
     else {
         //put black pixel if it points to empty space
-        colBuf[y][x] = vec3(0);
+        colBuf[y][x] = mirrTint*vec3(0.05);
         //PutPixelSDL(screen, x, y, vec3(0));
     }
 }
