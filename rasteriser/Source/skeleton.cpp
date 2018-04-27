@@ -25,9 +25,9 @@ vec4 cameraPos(0, 0, -2.001, 1); //removing the 0.001 will cause a crash to occo
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
-//vec4 lightPos(0,-0.7,0,1);
+vec4 lightPos(0,-0.7,0,1);
 float theta = 0.0f;
-vec4 lightPos(-0.8, -0.5, -0.8, 1.0);
+//vec4 lightPos(-0.8, -0.5, -0.8, 1.0);
 vec3 lightPower = 7.0f*vec3(1);
 vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
@@ -362,14 +362,14 @@ void Update(){
 
 
     const uint8_t* keystate = SDL_GetKeyboardState( 0 );
-    lightPos.x = sin(theta) * 0.8;
-    lightPos.z = cos(theta) * 0.8;
-    if(keystate[SDL_SCANCODE_Z]){
-        theta = theta + 0.1;
-    }
-    if(keystate[SDL_SCANCODE_X]){
-        theta = theta - 0.1;
-    }
+    // lightPos.x = sin(theta) * 0.8;
+    // lightPos.z = cos(theta) * 0.8;
+    // if(keystate[SDL_SCANCODE_Z]){
+    //     theta = theta + 0.1;
+    // }
+    // if(keystate[SDL_SCANCODE_X]){
+    //     theta = theta - 0.1;
+    // }
 
 
     float lookSpeed = 0.02;
