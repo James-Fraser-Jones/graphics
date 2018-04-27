@@ -19,8 +19,11 @@ struct Intersection{
   int triangleIndex;
 };
 
-#define SCREEN_WIDTH 256
-#define SCREEN_HEIGHT 256
+//lightSource with constants
+vec4 lightPos;
+
+#define SCREEN_WIDTH 512
+#define SCREEN_HEIGHT 512
 #define FULLSCREEN_MODE false
 
 vec4 cameraPos(0, 0, -3.001, 1); //removing the 0.001 will cause a crash to occour
@@ -28,6 +31,7 @@ vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
 float theta = 0; //stores the rotation of the light around the room
+bool blackWhiteMirror = false;
 
 //float blur = 2;
 float focus = 0;
@@ -77,7 +81,7 @@ void Update(){
     float moveSpeed = 0.02;
 
     //float blurSpeed = 0.2;
-    float focusSpeed = 0.2;
+    float focusSpeed = 0.1;
 
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
@@ -204,111 +208,163 @@ vec3 DirectLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const ve
 }
 
 void godBlur(float a, float minDepth, float maxDepth){
-  int r = (int) a;
+    int r = (int) a;
 
-  minDepth += focus;
-  maxDepth += focus;
+    minDepth += focus;
+    maxDepth += focus;
 
-  if (r < 1){ //ensure that r is within the correct bounds
-    r = 1;
-  }
-  else if (r > min(SCREEN_WIDTH, SCREEN_HEIGHT)){
-    r = min(SCREEN_WIDTH, SCREEN_HEIGHT);
-  }
-  if (r%2 != 1){ //ensure that r is odd
-    r -= 1;
-  }
-
-  int neigh = (r-1)/2; //number of neighbours on either side of the current pixel;
-
-  //perform horizontal blur
-  for (int i = 0; i < SCREEN_HEIGHT; i++){ //loop over rows
-
-    vec3 acc = vec3(0); //accumulator for row
-    int li = 0; //index for left part of row
-    int ri = neigh; //index for right part of row
-    int ti = neigh + 1; //total number of cells in accumulator
-
-    for (int j = 0; j <= ri; j++){ //initialize accumulator
-      acc = acc + colBuf[i][j];
+    if (r < 1){ //ensure that r is within the correct bounds
+        r = 1;
     }
-    //*
-    for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
-      blurBuf[i][j] = acc/(float) ti;
-      ri += 1;
-      ti += 1;
-      acc = acc + colBuf[i][ri];
+    else if (r > min(SCREEN_WIDTH, SCREEN_HEIGHT)){
+        r = min(SCREEN_WIDTH, SCREEN_HEIGHT);
     }
-    //*/
-    //*
-    for (int j = neigh; j < SCREEN_WIDTH - neigh; j++){ //blur cells with enough neighbours on both sides
-      blurBuf[i][j] = acc/(float) ti;
-      acc = acc - colBuf[i][li];
-      li += 1;
-      ri += 1;
-      acc = acc + colBuf[i][ri];
+    if (r%2 != 1){ //ensure that r is odd
+        r -= 1;
     }
-    //*/
-    //*
-    for (int j = SCREEN_WIDTH - neigh; j < SCREEN_WIDTH; j++){ //blur cells with not enough neighbours on the right
-      blurBuf[i][j] = acc/(float) ti;
-      acc = acc - colBuf[i][li];
-      li += 1;
-      ti -= 1;
-    }
-    //*/
-  }
 
-  //perform vertical blur
-  for (int i = 0; i < SCREEN_WIDTH; i++){ //loop over columns
+    int neigh = (r-1)/2; //number of neighbours on either side of the current pixel;
 
-    /*
-    for (int j = 0; j < SCREEN_HEIGHT; j++){
-      colBuf[j][i] = blurBuf[j][i];
-    }
-    //*/
+    //perform horizontal blur
+    for (int i = 0; i < SCREEN_HEIGHT; i++){ //loop over rows
 
-    vec3 acc = vec3(0); //accumulator for column
-    int li = 0; //index for top part of column
-    int ri = neigh; //index for bottom part of column
-    int ti = neigh + 1; //total number of cells in accumulator
+        vec3 acc = vec3(0); //accumulator for row
+        int li = 0; //index for left part of row
+        int ri = neigh; //index for right part of row
+        int ti = neigh + 1; //total number of cells in accumulator
 
-    for (int j = 0; j <= ri; j++){ //initialize accumulator
-      acc = acc + blurBuf[j][i];
+        for (int j = 0; j <= ri; j++){ //initialize accumulator
+            acc = acc + colBuf[i][j];
+        }
+        //*
+        for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+            blurBuf[i][j] = acc/(float) ti;
+            ri += 1;
+            ti += 1;
+            acc = acc + colBuf[i][ri];
+        }
+        //*/
+        //*
+        for (int j = neigh; j < SCREEN_WIDTH - neigh; j++){ //blur cells with enough neighbours on both sides
+            blurBuf[i][j] = acc/(float) ti;
+            acc = acc - colBuf[i][li];
+            li += 1;
+            ri += 1;
+            acc = acc + colBuf[i][ri];
+        }
+        //*/
+        //*
+        for (int j = SCREEN_WIDTH - neigh; j < SCREEN_WIDTH; j++){ //blur cells with not enough neighbours on the right
+            blurBuf[i][j] = acc/(float) ti;
+            acc = acc - colBuf[i][li];
+            li += 1;
+            ti -= 1;
+        }
+        //*/
     }
-    //*
-    for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
-      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
-        colBuf[j][i] = acc/(float) ti;
-      }
-      ri += 1;
-      ti += 1;
-      acc = acc + blurBuf[ri][i];
+
+    //perform vertical blur
+    for (int i = 0; i < SCREEN_WIDTH; i++){ //loop over columns
+
+        /*
+        for (int j = 0; j < SCREEN_HEIGHT; j++){
+        colBuf[j][i] = blurBuf[j][i];
+        }
+        //*/
+
+        vec3 acc = vec3(0); //accumulator for column
+        int li = 0; //index for top part of column
+        int ri = neigh; //index for bottom part of column
+        int ti = neigh + 1; //total number of cells in accumulator
+
+        for (int j = 0; j <= ri; j++){ //initialize accumulator
+            acc = acc + blurBuf[j][i];
+        }
+        //*
+        for (int j = 0; j < neigh; j++){ //blur cells with not enough neighbours on the left
+            if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+                colBuf[j][i] = acc/(float) ti;
+            }
+        ri += 1;
+        ti += 1;
+        acc = acc + blurBuf[ri][i];
+        }
+        //*/
+        //*
+        for (int j = neigh; j < SCREEN_HEIGHT - neigh; j++){ //blur cells with enough neighbours on both sides
+            if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+                colBuf[j][i] = acc/(float) ti;
+            }
+            acc = acc - blurBuf[li][i];
+            li += 1;
+            ri += 1;
+            acc = acc + blurBuf[ri][i];
+        }
+        //*/
+        //* problem is happening here somehow
+        for (int j = SCREEN_HEIGHT - neigh; j < SCREEN_HEIGHT; j++){ //blur cells with not enough neighbours on the right
+            if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
+                colBuf[j][i] = acc/(float) ti;
+            }
+            acc = acc - blurBuf[li][i];
+            li += 1;
+            ti -= 1;
+        }
+        //*/
     }
-    //*/
-    //*
-    for (int j = neigh; j < SCREEN_HEIGHT - neigh; j++){ //blur cells with enough neighbours on both sides
-      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
-        colBuf[j][i] = acc/(float) ti;
-      }
-      acc = acc - blurBuf[li][i];
-      li += 1;
-      ri += 1;
-      acc = acc + blurBuf[ri][i];
-    }
-    //*/
-    //* problem is happening here somehow
-    for (int j = SCREEN_HEIGHT - neigh; j < SCREEN_HEIGHT; j++){ //blur cells with not enough neighbours on the right
-      if ((depBuf[j][i] >= minDepth) && (depBuf[j][i] <= maxDepth)){
-        colBuf[j][i] = acc/(float) ti;
-      }
-      acc = acc - blurBuf[li][i];
-      li += 1;
-      ti -= 1;
-    }
-    //*/
-  }
 }
+
+// vec3 SoftLight(const Intersection& i, vec4 lightPos, vec3 lightColor, const vector<Triangle>& triangles) {
+//     vec3 bwColour = vec3(0);
+//     for(int x = 0; x < 20; x++) {
+//         if(bwColour.x > 1 || bwColour.y > 1 || bwColour.z > 1) break;
+//         for(int y = 0; y < 20; y++) {
+//             if(bwColour.x > 1 || bwColour.y > 1 || bwColour.z > 1) break;
+//             lightPos.z = lightPos.z+0.1;
+//             bwColour += DirectLight(i, lightPos, lightColor, triangles);
+//         }
+//         lightPos.x = lightPos.x+0.1;
+//     }
+//     return bwColour;
+// }
+
+void DrawMirroredWall(int x, int y, vec4 lightPos, vec3 lightColor, vec4 dir, Triangle tri, Intersection closestIntersection, const vector<Triangle>& triangles, screen* screen) {
+    //get angle of line
+    //get angle of line after reflection
+    vec4 reflectedLine = glm::reflect(dir, tri.normal);
+    //cout << reflectedLine.z << "\n";
+    vec4 mirrorIntersection = closestIntersection.position;
+    vec4 norm = tri.normal;
+    vec3 mirrTint = tri.color;
+    mirrorIntersection = mirrorIntersection + norm * vec4(0.001f);
+    //find object hit next
+    closestIntersection = {mirrorIntersection, std::numeric_limits<float>::max(), -1};
+    //colour this pixel that colour - add shadows later
+    if (ClosestIntersection(mirrorIntersection, reflectedLine, triangles, closestIntersection)){
+       
+        //get colour of reflected object
+        vec3 colour = triangles[closestIntersection.triangleIndex].color;
+        //get average of colour values
+        vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+        if(blackWhiteMirror) {
+            float avColourVal = (colour.x + colour.y + colour.z)/3;
+            colBuf[y][x] = bwColour*avColourVal;
+            //PutPixelSDL(screen, x, y, avColourVal*bwColour);
+        }
+        else {
+            colBuf[y][x] = bwColour*colour*mirrTint;
+            //PutPixelSDL(screen, x, y, colour*bwColour);
+        }
+       
+    }
+    else {
+        //put black pixel if it points to empty space
+        colBuf[y][x] = mirrTint*vec3(0.05);
+        //PutPixelSDL(screen, x, y, vec3(0));
+    }
+}
+
+
 
 void Draw(screen* screen, const vector<Triangle>& triangles){
 
@@ -318,42 +374,46 @@ void Draw(screen* screen, const vector<Triangle>& triangles){
     //since we're using xf and yf, focal length needs to be equal to width of screen which is the magnitude of the interval [-1:1] which is 2
     float focalLength = 1;
 
-    //lightSource with constants
-    vec4 lightPos;
-    lightPos.y = -0.5;
-    lightPos.w = 1.0;
     vec3 lightColor = 14.f * vec3(1);
 
     //lightSource rotates around the room
-    lightPos.x = sin(theta) * 0.8;
-    lightPos.z = cos(theta) * 0.8;
-    theta = theta + 0.05;
+    // lightPos.x = sin(theta) * 0.8;
+    // lightPos.z = cos(theta) * 0.8;
+    // theta = theta + 0.05;
 
     //Loop over all pixels in the image and calculate a ray for each one.
     #pragma omp parallel for
     for (int y = 0; y < SCREEN_HEIGHT; y++){ //don't use unsigned ints here!!!
         for (int x = 0; x < SCREEN_WIDTH; x++){
-          //get direction to pixel from middle of camera view
-          float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
-          float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
-          vec4 dir(xf, yf, focalLength, 0);
+            //get direction to pixel from middle of camera view
+            float xf = (float) x / (SCREEN_WIDTH-1) - 0.5; //goes from interval [0:SCREEN_WIDTH-1] to [-1/2:1/2]
+            float yf = (float) y / (SCREEN_HEIGHT-1) - 0.5; //goes from interval [0:SCREEN_HEIGHT-1] to [-1/2:1/2]
+            vec4 dir(xf, yf, focalLength, 0);
 
-          //modify direction to pixel based on camera rotation
-          mat4 M;
-          TransformationMatrix(M, vec4(0), cameraRot);
-          dir = M * dir;
+            //modify direction to pixel based on camera rotation
+            mat4 M;
+            TransformationMatrix(M, vec4(0), cameraRot);
+            dir = M * dir;
 
-          Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
-          if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
-              depBuf[y][x] = closestIntersection.distance;
-              vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
-              vec3 colour = triangles[closestIntersection.triangleIndex].color;
-              colBuf[y][x] = bwColour*colour;
-          }
-          else{
-            colBuf[y][x] = vec3(0);
-            depBuf[y][x] = std::numeric_limits<float>::max();
-          }
+            
+
+            Intersection closestIntersection = {cameraPos, std::numeric_limits<float>::max(), -1};
+            if (ClosestIntersection(cameraPos, dir, triangles, closestIntersection)){
+                Triangle tri = triangles[closestIntersection.triangleIndex];
+                if(tri.mirror) {
+                DrawMirroredWall(x, y, lightPos, lightColor, dir, tri, closestIntersection, triangles, screen);
+                }
+                else {
+                    depBuf[y][x] = closestIntersection.distance;
+                    vec3 bwColour = DirectLight(closestIntersection, lightPos, lightColor, triangles);
+                    vec3 colour = triangles[closestIntersection.triangleIndex].color;
+                    colBuf[y][x] = bwColour*colour;
+                }
+            }
+            else{
+                colBuf[y][x] = vec3(0);
+                depBuf[y][x] = std::numeric_limits<float>::max();
+            }
         }
     }
 
@@ -384,6 +444,8 @@ int main(int argc, char* argv[]){
     vector<Triangle> triangles;
     LoadTestModel(triangles);
 
+    lightPos.y = -0.5;
+    lightPos.w = 1.0;
     //Enter the rendering loop
     while(NoQuitMessageSDL()){
         cout << "Focus: " << focus << "\n";
