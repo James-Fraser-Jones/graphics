@@ -25,14 +25,16 @@ vec4 cameraPos(0, 0, -2.001, 1); //removing the 0.001 will cause a crash to occo
 vec4 cameraRot(0, 0, 0, 1);
 vec4 cameraDir(0, 0, 1, 0);
 
-vec4 lightPos(0,-0.5,-0.7,1);
+//vec4 lightPos(0,-0.7,0,1);
+float theta = 0.0f;
+vec4 lightPos(-0.8, -0.5, -0.8, 1.0);
 vec3 lightPower = 7.0f*vec3(1);
 vec3 indirectLightPowerPerArea = 0.5f*vec3(1);
 vec3 globalReflectance(1.5);
 vec4 currentNormal;
 
-vec3 band1(0.5,0.5,0.5);
-vec3 band2(2,2,2);
+vec3 band1(1.5);
+vec3 band2(3);
 
 struct Pixel {
     int x;
@@ -42,7 +44,7 @@ struct Pixel {
 };
 
 struct Vertex {
-     vec4 position;
+    vec4 position;
 };
 
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
@@ -73,19 +75,6 @@ void DrawVertecies(screen* screen, vector<Vertex> vertices){
       SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y-1, color);
       SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y+1, color);
       SafePutPixelSDL(screen, vertexPixels[i].x-1, vertexPixels[i].y, color);
-    }
-}
-*/
-
-/*
-//No longer used
-void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result){ //this returns every point on the line
-    int N = result.size(); //we have to know the size in advance
-    vec2 step = vec2(b-a) / float(max(N-1,1));
-    vec2 current(a);
-    for(int i=0; i<N; i++){
-        result[i] = current;
-        current += step;
     }
 }
 */
@@ -125,19 +114,12 @@ void SafePutPixelSDL(screen* screen, int x, int y, vec3 color) {
     }
 }
 
-void TransformationMatrix(mat4& M, vec4 pos, vec4 rot){
+void TransformationMatrix(mat4& M, vec4 pos, vec4 rot) {
 
     mat4 toOrigin (1,0,0,-pos.x,
                     0,1,0,-pos.y,
                     0,0,1,-pos.z,
                     0,0,0,1);
-
-    /* //don't seem to need this at the moment
-    mat4 toCamera (1,0,0,pos.x,
-                    0,1,0,pos.y,
-                    0,0,1,pos.z,
-                    0,0,0,1);
-    //*/
 
     mat4 rotationX(1,0,0,0,
                     0,cos(rot.x),-sin(rot.x),0,
@@ -180,7 +162,7 @@ vec3 getBand(float distance) {
             return vec3(0.5);
     }
     else {
-        return vec3(0.5);
+        return vec3(0.25);
     }
 }
 
@@ -191,12 +173,14 @@ void PixelShader(const Pixel& p, screen *screen, vec3 color, vec4 cNormal){
     int y = p.y;
     if(p.z > depthBuffer[y][x]){
         depthBuffer[y][x] = p.z;
-        float distance = glm::abs(glm::dot(cNormal,(lightPos-p.pos3d)));
-        vec3 D = lightPower*max((float)0, distance);
+
+        float distance = glm::length((lightPos-p.pos3d));
+        vec3 D = lightPower*max((float)0, glm::abs(glm::dot(cNormal,(lightPos-p.pos3d))));
         D = D*(float)(1/(4*glm::length(p.pos3d-lightPos)*M_PI));
+
         vec3 illumination = reflectance*(D + indirectLightPowerPerArea);
         vec3 band = getBand(distance);
-        SafePutPixelSDL(screen, x, y, band*illumination*illumination*color);
+        SafePutPixelSDL(screen, x, y, band*color);
     }
 }
 
@@ -347,7 +331,7 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
             surround[6] = depthBuffer[y+1][x-1];
             surround[7] = depthBuffer[y+1][x];
             surround[8] = depthBuffer[y+1][x+1];
-
+            //ignore pixels outside cube
             for(int q = 1; q < 9; q++) {
                 if(surround[q] == 0) {
                     flag1 = 1;
@@ -355,7 +339,8 @@ void Draw(screen* screen, const vector <Triangle>& triangles){
             }
             if(flag1 != 1) {
                 for(int z = 1; z < 9; z++) {
-                    if( glm::abs(surround[z] - depthBuffer[y][x]) > 0.1f) {
+                    //if a surrounding pixel depth - main pixel depth is greater than certain distance
+                    if(glm::abs(surround[z] - depthBuffer[y][x]) > 0.05f) {
                         outlinePixel(screen, x, y);
                         break;
                     }
@@ -375,42 +360,54 @@ void Update(){
     std::cout << "Render time: " << dt << " ms." << std::endl;
     //*/
 
+
+    const uint8_t* keystate = SDL_GetKeyboardState( 0 );
+    lightPos.x = sin(theta) * 0.8;
+    lightPos.z = cos(theta) * 0.8;
+    if(keystate[SDL_SCANCODE_Z]){
+        theta = theta + 0.1;
+    }
+    if(keystate[SDL_SCANCODE_X]){
+        theta = theta - 0.1;
+    }
+
+
     float lookSpeed = 0.02;
     float moveSpeed = 0.02;
 
     //Collect button inputs
     vec4 lookVector(0, 0, 0, 1);
     vec4 moveVector(0, 0, 0, 1);
-    const uint8_t* keystate = SDL_GetKeyboardState( 0 );
+
     if(keystate[SDL_SCANCODE_LEFT]){
-    lookVector.y = -1;
+        lookVector.y = -1;
     }
     else if(keystate[SDL_SCANCODE_RIGHT]){
-    lookVector.y = 1;
+        lookVector.y = 1;
     }
     if(keystate[SDL_SCANCODE_UP]){
-    lookVector.x = 1;
+        lookVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_DOWN]){
-    lookVector.x = -1;
+        lookVector.x = -1;
     }
     if(keystate[SDL_SCANCODE_W]){
-    moveVector.z = -1;
+        moveVector.z = -1;
     }
     else if(keystate[SDL_SCANCODE_S]){
-    moveVector.z = 1;
+        moveVector.z = 1;
     }
     if(keystate[SDL_SCANCODE_A]){
-    moveVector.x = 1;
+        moveVector.x = 1;
     }
     else if(keystate[SDL_SCANCODE_D]){
-    moveVector.x = -1;
+        moveVector.x = -1;
     }
     if(keystate[SDL_SCANCODE_SPACE]){
-    moveVector.y = 1;
+        moveVector.y = 1;
     }
     else if(keystate[SDL_SCANCODE_LCTRL]){
-    moveVector.y = -1;
+        moveVector.y = -1;
     }
 
     //*
